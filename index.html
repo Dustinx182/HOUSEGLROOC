@@ -379,23 +379,24 @@ function evalPlayer(p){
   if(!kpi) return {checks:[], fails:0, applicable:0};
   const baseline = HOUSE_BASELINE[p.bf][p.kpiJob] || {};
   const monVal = p.bf==='Sub' ? p.mon : p.tab;
-  // vsMedian: purely descriptive — where this value sits relative to HOUSE's own typical output for this
-  // job/metric, independent of whether it clears the external target. null when there's no baseline to compare.
-  const vsMedian = (val, base) => {
+  // vsMedian: qualitative, not just numeric direction — "better" always means favorable relative to HOUSE's own
+  // typical output for this job/metric, so it correctly flips for Death (a ceiling, where LOWER is better) instead
+  // of literally reporting "above/below", which would say "above HOUSE median" for a worse (higher) death count.
+  const vsMedian = (val, base, ceil) => {
     if(base===undefined || base===null) return null;
-    if(val > base) return 'above';
-    if(val < base) return 'below';
-    return 'at';
+    if(val === base) return 'at';
+    const better = ceil ? val < base : val > base;
+    return better ? 'better' : 'worse';
   };
   const checks = [
     {label:METRIC_LABEL[p.bf], val:monVal, target:kpi.mon, pass: kpi.mon===null? null : monVal>=kpi.mon, ceil:false,
-     vsMedian: vsMedian(monVal, baseline.mon)},
+     vsMedian: vsMedian(monVal, baseline.mon, false)},
     {label:'Kills', val:p.k, target:kpi.k, pass: kpi.k===null? null : p.k>=kpi.k, ceil:false,
-     vsMedian: vsMedian(p.k, baseline.k)},
+     vsMedian: vsMedian(p.k, baseline.k, false)},
     {label:'Assist', val:p.a, target:kpi.a, pass: kpi.a===null? null : p.a>=kpi.a, ceil:false,
-     vsMedian: vsMedian(p.a, baseline.a)},
+     vsMedian: vsMedian(p.a, baseline.a, false)},
     {label:'Death', val:p.d, target:kpi.d, pass: kpi.d===null? null : p.d<=kpi.d, ceil:true,
-     vsMedian: vsMedian(p.d, baseline.d)},
+     vsMedian: vsMedian(p.d, baseline.d, true)},
   ];
   const applicableChecks = checks.filter(c=>c.pass!==null);
   const fails = applicableChecks.filter(c=>c.pass===false).length;
@@ -544,8 +545,10 @@ function populateFilters(){
 function renderMetricChips(ev){
   return ev.checks.map(c=>{
     if(c.pass===null) return `<div class="metric na"><div class="mv">${c.val ?? '—'}</div><div class="mt">${c.label}</div></div>`;
-    const tagText = c.vsMedian===null ? '' :
-      c.vsMedian==='at' ? 'at HOUSE median' : `${c.vsMedian} HOUSE median`;
+    // only surface this tag when it's favorable context (softens an otherwise-red miss) or neutral —
+    // deliberately silent when it's also worse than HOUSE's own median, so a bad chip isn't piled onto twice
+    const tagText = (c.vsMedian===null || c.vsMedian==='worse') ? '' :
+      c.vsMedian==='at' ? 'at HOUSE median' : 'better than HOUSE median';
     const tag = tagText ? `<div class="mtag">${tagText}</div>` : '';
     return `<div class="metric ${c.pass?'pass':'fail'}"><div class="mv">${c.val}</div><div class="mt">${c.label} /${c.target}</div>${tag}</div>`;
   }).join('');
