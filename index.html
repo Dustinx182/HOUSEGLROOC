@@ -74,6 +74,11 @@
   .kpi-info-panel td{padding:6px 4px; border-bottom:1px solid rgba(255,255,255,0.04); color:var(--text);}
   .kpi-info-panel td:first-child{color:var(--text-dim); font-weight:600;}
   .kpi-info-panel .ceil-note{color:var(--fail); font-size:9.5px;}
+  .kpi-info-panel .bi-short{color:var(--fail); font-weight:700; background:rgba(224,92,92,0.1);}
+  .kpi-info-panel .bi-ok{color:var(--win); font-weight:700; background:rgba(63,184,127,0.1);}
+  .kpi-info-panel .bi-na{color:var(--text-dim);}
+  .kpi-info-panel .bi-short-dot{color:var(--fail);}
+  .kpi-info-panel .bi-ok-dot{color:var(--win);}
 
   .sticky-filters{
     position:sticky; top:58px; z-index:40;
@@ -179,6 +184,7 @@
   .metric.pass .mv{color:var(--pass);}
   .metric.fail .mv{color:var(--fail);}
   .metric .mt{font-size:8.5px; color:var(--text-dim); margin-top:1px; text-transform:uppercase; letter-spacing:0.03em;}
+  .metric .mtag{font-size:8.5px; color:var(--gold-dim); margin-top:1px; font-weight:700; letter-spacing:0.02em;}
 
   .empty-msg{text-align:center; color:var(--text-dim); font-size:12.5px; padding:24px 10px;}
 
@@ -343,15 +349,53 @@ const KPI = {
 };
 const METRIC_LABEL = {Sub:'Mon', Main:'Tab'};
 
+// ---------- HOUSE's own baseline (median of HOUSE's own per-match medians, all 4 matches, win+loss) ----------
+// Pulled from HOUSE_KPI_Derivation.xlsx Step 6c — same rigor as the KPI table above, kept in sync by hand
+// whenever that workbook's Step 6 is recalculated.
+const HOUSE_BASELINE = {
+  Sub: {
+    'Sniper/Stalker/GS': {mon:4, k:17, a:89,  d:17},
+    'Doram':              {mon:3, k:9,  a:129, d:3},
+    'Mage':                {mon:2, k:13, a:103, d:6},
+    'LK/Paladin':          {mon:5, k:10, a:81,  d:7},
+    'Biochemist':          {mon:0, k:null, a:129, d:6},
+    'Bard/Gypsy':          {mon:null, k:null, a:67, d:3},
+    'Priest':              {mon:null, k:null, a:79, d:2},
+  },
+  Main: {
+    'Sniper/Stalker/GS': {mon:6, k:20, a:69,  d:24},
+    'Doram':              {mon:9, k:6,  a:85,  d:3},
+    'Mage':                {mon:8, k:6,  a:82,  d:4},
+    'LK/Paladin':          {mon:7, k:15, a:72,  d:9},
+    'Biochemist':          {mon:10, k:null, a:109, d:4},
+    'Bard/Gypsy':          {mon:9, k:null, a:69, d:1},
+    'Priest':              {mon:9, k:null, a:55, d:0},
+  }
+};
+
+
 function evalPlayer(p){
   const kpi = KPI[p.bf][p.kpiJob];
   if(!kpi) return {checks:[], fails:0, applicable:0};
+  const baseline = HOUSE_BASELINE[p.bf][p.kpiJob] || {};
   const monVal = p.bf==='Sub' ? p.mon : p.tab;
+  // vsMedian: purely descriptive — where this value sits relative to HOUSE's own typical output for this
+  // job/metric, independent of whether it clears the external target. null when there's no baseline to compare.
+  const vsMedian = (val, base) => {
+    if(base===undefined || base===null) return null;
+    if(val > base) return 'above';
+    if(val < base) return 'below';
+    return 'at';
+  };
   const checks = [
-    {label:METRIC_LABEL[p.bf], val:monVal, target:kpi.mon, pass: kpi.mon===null? null : monVal>=kpi.mon, ceil:false},
-    {label:'Kills', val:p.k, target:kpi.k, pass: kpi.k===null? null : p.k>=kpi.k, ceil:false},
-    {label:'Assist', val:p.a, target:kpi.a, pass: kpi.a===null? null : p.a>=kpi.a, ceil:false},
-    {label:'Death', val:p.d, target:kpi.d, pass: kpi.d===null? null : p.d<=kpi.d, ceil:true},
+    {label:METRIC_LABEL[p.bf], val:monVal, target:kpi.mon, pass: kpi.mon===null? null : monVal>=kpi.mon, ceil:false,
+     vsMedian: vsMedian(monVal, baseline.mon)},
+    {label:'Kills', val:p.k, target:kpi.k, pass: kpi.k===null? null : p.k>=kpi.k, ceil:false,
+     vsMedian: vsMedian(p.k, baseline.k)},
+    {label:'Assist', val:p.a, target:kpi.a, pass: kpi.a===null? null : p.a>=kpi.a, ceil:false,
+     vsMedian: vsMedian(p.a, baseline.a)},
+    {label:'Death', val:p.d, target:kpi.d, pass: kpi.d===null? null : p.d<=kpi.d, ceil:true,
+     vsMedian: vsMedian(p.d, baseline.d)},
   ];
   const applicableChecks = checks.filter(c=>c.pass!==null);
   const fails = applicableChecks.filter(c=>c.pass===false).length;
@@ -500,7 +544,10 @@ function populateFilters(){
 function renderMetricChips(ev){
   return ev.checks.map(c=>{
     if(c.pass===null) return `<div class="metric na"><div class="mv">${c.val ?? '—'}</div><div class="mt">${c.label}</div></div>`;
-    return `<div class="metric ${c.pass?'pass':'fail'}"><div class="mv">${c.val}</div><div class="mt">${c.label} /${c.target}</div></div>`;
+    const tagText = c.vsMedian===null ? '' :
+      c.vsMedian==='at' ? 'at HOUSE median' : `${c.vsMedian} HOUSE median`;
+    const tag = tagText ? `<div class="mtag">${tagText}</div>` : '';
+    return `<div class="metric ${c.pass?'pass':'fail'}"><div class="mv">${c.val}</div><div class="mt">${c.label} /${c.target}</div>${tag}</div>`;
   }).join('');
 }
 
@@ -601,7 +648,9 @@ function renderPlayerList(){
 // ---------- KPI info panel (built from the same KPI object used for pass/fail) ----------
 function renderKpiInfoPanel(){
   const table = KPI[kpiBf];
+  const baseline = HOUSE_BASELINE[kpiBf];
   const monLabel = kpiBf === 'Sub' ? 'Monster' : 'Tablet';
+
   const rows = Object.entries(table).map(([job, t])=>{
     const cell = (v, ceil) => v===null ? '—' : (ceil ? `≤ ${v}` : `≥ ${v}`);
     return `<tr>
@@ -612,11 +661,34 @@ function renderKpiInfoPanel(){
       <td>${cell(t.d,true)}</td>
     </tr>`;
   }).join('');
+
+  const baselineRows = Object.entries(table).map(([job, t])=>{
+    const b = baseline[job];
+    const cellClass = (bv, tv, ceil) => {
+      if(bv===null || tv===null) return 'bi-na';
+      const clears = ceil ? bv<=tv : bv>=tv;
+      return clears ? 'bi-ok' : 'bi-short';
+    };
+    const cellText = (bv) => bv===null ? '—' : bv;
+    return `<tr>
+      <td>${job}</td>
+      <td class="${cellClass(b.mon,t.mon,false)}">${cellText(b.mon)}</td>
+      <td class="${cellClass(b.k,t.k,false)}">${cellText(b.k)}</td>
+      <td class="${cellClass(b.a,t.a,false)}">${cellText(b.a)}</td>
+      <td class="${cellClass(b.d,t.d,true)}">${cellText(b.d)}</td>
+    </tr>`;
+  }).join('');
+
   document.getElementById('kpiInfoPanel').innerHTML = `
     <p><b>${kpiBf}-Battlefield thresholds.</b> For each job, we take every <b>winning</b> roster's own median stat, then take the median of <i>those</i> — so one roster fielding lots of a job (or one blowout win) can't dominate the number by itself; every winning roster counts equally. ${monLabel}, Kills and Assist are floors — clear them to pass. Death is a ceiling, set at the high end of typical variance — stay at or under it to pass. A player with no applicable metric (e.g. Priests don't have a kill target) is scored only on the columns that apply to them.</p>
     <table>
       <thead><tr><th>Job</th><th>${monLabel}</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead>
       <tbody>${rows}</tbody>
+    </table>
+    <p style="margin-top:12px;"><b>Where HOUSE actually sits.</b> This is HOUSE's own median — win or lose, across all 4 matches, same job-by-job breakdown, same table shape so you can compare directly against the target above. <span class="bi-short-dot">●</span> red = below the target for that cell, <span class="bi-ok-dot">●</span> green = at or clearing it.</p>
+    <table>
+      <thead><tr><th>Job</th><th>${monLabel}</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead>
+      <tbody>${baselineRows}</tbody>
     </table>`;
 }
 
