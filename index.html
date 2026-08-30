@@ -794,13 +794,18 @@ function renderKpiInfoPanel(){
         return (ceil ? mv<=tv : mv>=tv) ? 'bi-ok' : 'bi-short';
       };
       const fmtVal = v => v===null || v===undefined ? '—' : Math.round(v*10)/10;
-      if(!mm) return `<tr><td>${job}</td><td class="bi-na">—</td><td class="bi-na">—</td><td class="bi-na">—</td><td class="bi-na">—</td></tr>`;
+      // A null KPI target means this metric isn't tracked for this job at all (e.g. Kills for
+      // Priest) — that always wins over showing a computed number, even a real "0", matching how
+      // the two tables above already hide it. Insufficient sample size is the separate, second
+      // reason a cell can read "—": the job/metric IS tracked, there just weren't enough players.
+      const cell = (mv, tv, ceil) => tv===null ? `<td class="bi-na">—</td>` : `<td class="${cellClass(mv,tv,ceil)}">${fmtVal(mv)}</td>`;
+      if(!mm) return `<tr><td>${job}</td>${cell(null,t.mon,false)}${cell(null,t.k,false)}${cell(null,t.a,false)}${cell(null,t.d,true)}</tr>`;
       return `<tr>
         <td>${job}</td>
-        <td class="${cellClass(mm.mon,t.mon,false)}">${fmtVal(mm.mon)}</td>
-        <td class="${cellClass(mm.k,t.k,false)}">${fmtVal(mm.k)}</td>
-        <td class="${cellClass(mm.a,t.a,false)}">${fmtVal(mm.a)}</td>
-        <td class="${cellClass(mm.d,t.d,true)}">${fmtVal(mm.d)}</td>
+        ${cell(mm.mon,t.mon,false)}
+        ${cell(mm.k,t.k,false)}
+        ${cell(mm.a,t.a,false)}
+        ${cell(mm.d,t.d,true)}
       </tr>`;
     }).join('');
     const colourNote = COLOR_MATCH_MEDIAN_TABLE
@@ -855,7 +860,12 @@ function renderKpiInfoPanel(){
       <tbody>${baselineRows}</tbody>
     </table>
     ${matchSectionHtml}
-    <p style="margin-top:12px;"><b>How the two tags on each chip differ.</b> The <b style="color:var(--gold-dim);">gold tag</b> ("at/better than HOUSE median") compares you to HOUSE's own long-run typical output — same as the second table above, fixed across all 4 matches. The <b style="color:var(--dps);">blue tag</b> ("vs match median") compares you to everyone who played your job in that exact match, on both sides — your own teammates and the opposing guild's players together. Same numbers as the third table, recomputed live from whatever matches are currently loaded. It only appears when at least ${MIN_MATCH_MEDIAN_N} players across both rosters shared that job; below that, one or two players would just be compared to themselves, which isn't a real comparison, so it's left blank rather than shown as misleading. Both tags stay hidden when the comparison is unfavourable — they're there to add context to a number, not to pile on. <b>They're not just decoration:</b> clearing both is the second way a chip can go green — see "How a chip turns green" above.</p>`;
+    <p style="margin-top:12px;"><b>The two tags:</b></p>
+    <ul style="margin:6px 0 0 18px; padding:0; font-size:11.5px; color:var(--text-dim); line-height:1.6;">
+      <li><b style="color:var(--gold-dim);">Gold</b> — vs HOUSE's own typical output, fixed across all 4 matches.</li>
+      <li><b style="color:var(--dps);">Blue</b> — vs everyone who played your job in that match, both sides. Needs ${MIN_MATCH_MEDIAN_N}+ players sharing it, else blank.</li>
+      <li>No tag at all can mean either: too few players shared the job that match, or the comparison wasn't in your favour.</li>
+    </ul>`;
 }
 
 document.getElementById('kpiInfoToggle').addEventListener('click', ()=>{
