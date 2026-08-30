@@ -377,12 +377,17 @@ function buildMatchMedians(){
   Object.entries(buckets).forEach(([key, group])=>{
     if(group.length < MIN_MATCH_MEDIAN_N) return;
     const bf = key.split('|')[0];
+    // An even-sized group yields a .5 median. Round it here rather than at display time, so the
+    // table, the blue chip tags and the better/at/worse comparison all read from one identical
+    // integer — rounding only the display would let a chip say "better than 5.5" beside a table
+    // cell reading 6, or call a player with exactly 6 "better than match median (6)".
+    const r = v => v===null ? null : Math.round(v);
     MATCH_MEDIANS[key] = {
       n:   group.length,
-      mon: median(group.map(p=> bf==='Sub' ? (p.mon||0) : (p.tab||0))),
-      k:   median(group.map(p=>p.k)),
-      a:   median(group.map(p=>p.a)),
-      d:   median(group.map(p=>p.d)),
+      mon: r(median(group.map(p=> bf==='Sub' ? (p.mon||0) : (p.tab||0)))),
+      k:   r(median(group.map(p=>p.k))),
+      a:   r(median(group.map(p=>p.a))),
+      d:   r(median(group.map(p=>p.d))),
     };
   });
 }
