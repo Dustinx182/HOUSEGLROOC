@@ -54,6 +54,11 @@
   section{margin-bottom:22px;}
   .section-head{display:flex; align-items:baseline; justify-content:space-between; margin:0 4px 10px; gap:8px; flex-wrap:wrap;}
   .section-head h2{font-size:13px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-dim); margin:0; font-weight:700;}
+  .section-head.sh-record h2{color:var(--gold);}
+  .section-head.sh-comp h2{color:#5ec8c0;}
+  .section-head.sh-trends h2{color:var(--dps);}
+  .section-head.sh-top h2{color:#e8a33d;}
+  .section-head.sh-kpi h2{color:var(--support);}
   .info-link{
     background:none; border:none; color:var(--gold); font-size:11px; font-weight:600;
     cursor:pointer; padding:0; white-space:nowrap;
@@ -123,8 +128,11 @@
   .match-strip{display:flex; gap:8px; overflow-x:auto; padding:2px 2px 4px;}
   .match-card{
     flex:0 0 auto; min-width:108px; background:var(--panel); border:1px solid var(--border);
-    border-radius:10px; padding:9px 11px; position:relative;
+    border-radius:10px; padding:9px 11px; position:relative; cursor:pointer;
+    transition:border-color 0.15s, background 0.15s;
   }
+  .match-card:active{transform:scale(0.97);}
+  .match-card.selected{border-color:var(--gold); background:rgba(212,169,76,0.10);}
   .match-card .m{font-size:10px; color:var(--text-dim); font-weight:600;}
   .match-card .opp{font-size:12.5px; font-weight:700; margin-top:1px;}
   .match-card .res{
@@ -134,6 +142,7 @@
   .res.Loss{background:rgba(224,92,92,0.18); color:var(--loss);}
   .match-card .kd{font-size:11px; color:var(--text-dim); margin-top:6px;}
   .match-card .kd b{color:var(--text);}
+  .match-card .tap-hint{font-size:8.5px; color:var(--gold-dim); margin-top:5px; font-weight:700; letter-spacing:0.02em;}
 
   /* chart panel */
   .chart-panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 10px 6px;}
@@ -148,7 +157,7 @@
   .lb-row{display:flex; align-items:center; gap:9px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04);}
   .lb-row:last-child{border-bottom:none;}
   .lb-rank{width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center;
-    font-size:11px; font-weight:800; flex-shrink:0;}
+    font-size:11px; font-weight:800; flex-shrink:0; background:var(--panel-2); color:var(--text-dim);}
   .lb-rank.r1{background:rgba(212,169,76,0.22); color:var(--gold);}
   .lb-rank.r2{background:rgba(200,204,214,0.16); color:#c9cdd6;}
   .lb-rank.r3{background:rgba(198,131,74,0.22); color:#c9834a;}
@@ -157,9 +166,19 @@
   .lb-meta{font-size:9.5px; color:var(--text-dim); margin-top:1px;}
   .lb-value{font-size:14px; font-weight:800; color:var(--text); white-space:nowrap; flex-shrink:0;}
   .lb-empty{font-size:11px; color:var(--text-dim); padding:4px 0 2px;}
+  .lb-extra{border-top:1px dashed rgba(255,255,255,0.08); margin-top:2px; padding-top:2px;}
+  .lb-toggle{
+    display:block; width:100%; background:none; border:none; color:var(--gold); font-size:11px;
+    font-weight:700; padding:8px 0 2px; margin-top:2px; cursor:pointer; text-align:center;
+  }
+  .lb-toggle:active{opacity:0.65;}
 
   /* team composition */
-  .comp-row{margin-bottom:12px;}
+  .comp-row{margin-bottom:12px; border-radius:8px; padding:6px 8px; margin-left:-8px; margin-right:-8px;
+    border-left:4px solid transparent;}
+  .comp-row.opp-lead{background:rgba(224,92,92,0.18); border-left-color:var(--loss); padding-left:12px;}
+  .comp-row.opp-lead .comp-head .job{color:var(--loss); font-weight:800;}
+  .comp-row.opp-lead .comp-head .counts b.opp-num{color:var(--loss);}
   .comp-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; font-size:11.5px;}
   .comp-head .job{font-weight:700; color:var(--text);}
   .comp-head .counts{color:var(--text-dim); font-size:10.5px;}
@@ -271,21 +290,19 @@
 <main id="appBody">
 
   <section>
-    <div class="section-head"><h2>Match Record</h2></div>
+    <div class="section-head sh-record"><h2>Match Record</h2></div>
     <div class="match-strip" id="matchStrip"></div>
   </section>
 
   <section>
-    <div class="section-head"><h2>Team Composition</h2></div>
-    <div class="lb-sub-note">Which jobs each side fielded, per match · follows the Sub/Main toggle above</div>
+    <div class="section-head sh-comp"><h2>Team Composition</h2></div>
     <div style="height:10px;"></div>
     <select id="compMatchFilter" style="width:100%; margin-bottom:12px;"></select>
     <div id="compGrid"></div>
   </section>
 
   <section>
-    <div class="section-head"><h2>Team Trends</h2></div>
-    <div class="lb-sub-note">The Sub/Main toggle pinned above also controls Top Performers and Player KPI Check further down</div>
+    <div class="section-head sh-trends"><h2>Team Trends</h2></div>
     <div style="height:12px;"></div>
     <div class="chart-grid">
       <div class="chart-panel">
@@ -301,14 +318,13 @@
   </section>
 
   <section>
-    <div class="section-head"><h2>Top Performers</h2></div>
-    <div class="lb-sub-note">Totals across all 4 matches · HOUSE roster only · must have played 2+ matches to rank · follows the Team Trends toggle above</div>
+    <div class="section-head sh-top"><h2>Top Performers</h2></div>
     <div style="height:12px;"></div>
     <div class="lb-grid" id="lbGrid"></div>
   </section>
 
   <section>
-    <div class="section-head">
+    <div class="section-head sh-kpi">
       <h2>Player KPI Check</h2>
       <button id="kpiInfoToggle" class="info-link">ℹ️ How is this calculated?</button>
     </div>
@@ -504,14 +520,36 @@ function renderMatchStrip(){
   document.getElementById('recordPill').textContent = `${wins}W – ${DASH.matches.length-wins}L`;
   document.getElementById('matchStrip').innerHTML = DASH.matches.map(m=>{
     const sk=m.sub.k, sd=m.sub.d, mk=m.main.k, md=m.main.d;
-    return `<div class="match-card">
+    return `<div class="match-card" data-match="${m.match}">
       <span class="res ${m.result}">${m.result}</span>
       <div class="m">Match ${m.match}</div>
       <div class="opp">vs ${m.opp}</div>
       <div class="kd">Sub <b>${sk}</b>/${sd}</div>
       <div class="kd">Main <b>${mk}</b>/${md}</div>
+      <div class="tap-hint">Tap to focus ↴</div>
     </div>`;
   }).join('');
+  // wired once — DASH.matches never changes after load, so the strip never re-renders
+  document.querySelectorAll('#matchStrip .match-card').forEach(card=>{
+    card.addEventListener('click', ()=> jumpToMatch(parseInt(card.dataset.match, 10)));
+  });
+}
+
+// Clicking a match card is the one action that focuses BOTH Team Composition and Player KPI
+// Check on that match at once — previously each had its own dropdown, so comparing the same
+// match across both sections meant setting it twice. Changing either dropdown independently
+// still works exactly as before and only affects its own section.
+function jumpToMatch(matchNo){
+  document.querySelectorAll('#matchStrip .match-card').forEach(card=>{
+    card.classList.toggle('selected', parseInt(card.dataset.match,10)===matchNo);
+  });
+  const compSel = document.getElementById('compMatchFilter');
+  compSel.value = String(matchNo);
+  renderComposition();
+  const kpiSel = document.getElementById('matchFilter');
+  kpiSel.value = String(matchNo);
+  renderPlayerList();
+  if(document.getElementById('kpiInfoPanel').style.display !== 'none') renderKpiInfoPanel();
 }
 
 // ---------- trend charts ----------
@@ -546,6 +584,8 @@ function renderTrendCharts(){
     ]},
     options:{
       responsive:true,
+      onClick:(evt, elements)=>{ if(elements.length) jumpToMatch(DASH.matches[elements[0].index].match); },
+      onHover:(evt, elements)=>{ if(evt.native && evt.native.target) evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
       plugins:{
         legend:{labels:{color:'#c9cdd6', font:{size:10.5}}},
         title:{display:true, text:'Kills vs Deaths by Match', color:'#e8e8ec', font:{size:12, weight:'700'}},
@@ -568,6 +608,8 @@ function renderTrendCharts(){
     ]},
     options:{
       responsive:true,
+      onClick:(evt, elements)=>{ if(elements.length) jumpToMatch(DASH.matches[elements[0].index].match); },
+      onHover:(evt, elements)=>{ if(evt.native && evt.native.target) evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
       plugins:{
         legend:{display:false},
         title:{display:true, text:'Team Assists by Match', color:'#e8e8ec', font:{size:12, weight:'700'}},
@@ -588,6 +630,8 @@ function renderTrendCharts(){
     ]},
     options:{
       responsive:true,
+      onClick:(evt, elements)=>{ if(elements.length) jumpToMatch(DASH.matches[elements[0].index].match); },
+      onHover:(evt, elements)=>{ if(evt.native && evt.native.target) evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
       plugins:{
         legend:{display:false},
         title:{display:true, text:`Team ${objLabel} by Match`, color:'#e8e8ec', font:{size:12, weight:'700'}},
@@ -743,19 +787,20 @@ function renderComposition(){
   const sel = document.getElementById('compMatchFilter');
   if(sel.options.length===0){
     sel.innerHTML = DASH.matches.map(m=>`<option value="${m.match}">M${m.match} vs ${m.opp} (${m.result})</option>`).join('');
-    sel.value = DASH.matches[DASH.matches.length-1].match; // default to the most recent match
+    sel.value = DASH.matches[0].match; // default to M1
   }
   const matchNo = parseInt(sel.value, 10);
   const comp = buildComposition(currentBf, matchNo);
   const rows = COMP_JOBS.map(job=>{
     const h = comp.house[job], o = comp.opp[job], total = h+o;
+    const oppLeads = o > h; // the actual flag driving the highlight — everything else is just styling
     const barInner = total===0
       ? `<div class="empty-both">nobody fielded this job</div>`
       : `<div class="house" style="flex:${h}"></div><div class="opp" style="flex:${o}"></div>`;
-    return `<div class="comp-row">
+    return `<div class="comp-row${oppLeads ? ' opp-lead' : ''}">
       <div class="comp-head">
         <span class="job">${job}</span>
-        <span class="counts"><b>${h}</b> HOUSE &nbsp;·&nbsp; <b>${o}</b> Opponent</span>
+        <span class="counts"><b>${h}</b> HOUSE &nbsp;·&nbsp; <b class="opp-num">${o}</b> Opponent</span>
       </div>
       <div class="comp-bar">${barInner}</div>
     </div>`;
@@ -802,7 +847,7 @@ function buildLeaderboard(bf){
         if(sec!==0) return sec;
         return x.name.localeCompare(y.name);
       })
-      .slice(0,3);
+      .slice(0,10); // top 3 render open by default; ranks 4-10 sit behind a "show more" toggle
   };
   return {
     kills:  topN('k','desc'),
@@ -813,28 +858,44 @@ function buildLeaderboard(bf){
   };
 }
 
-function renderLbPanel(title, list, key){
+function renderLbPanel(title, list, key, panelId){
   if(list.length===0) return `<div class="lb-panel"><div class="lb-title">${title}</div><div class="lb-empty">No data yet.</div></div>`;
   const MEDAL = ['🏆','🥈','🥉']; // rank badge already carries the number, so this is flair on the name, not the only cue
-  const rows = list.map((e,i)=>`
+  const rowHtml = (e,i) => `
     <div class="lb-row">
-      <div class="lb-rank r${i+1}">${i+1}</div>
+      <div class="lb-rank r${i<3 ? i+1 : ''}">${i+1}</div>
       <div class="lb-info">
-        <div class="lb-name">${MEDAL[i]} ${e.name}</div>
+        <div class="lb-name">${MEDAL[i] || ''} ${e.name}</div>
         <div class="lb-meta">${e.job} · ${e.n} match${e.n>1?'es':''}</div>
       </div>
       <div class="lb-value">${e[key]}</div>
-    </div>`).join('');
-  return `<div class="lb-panel"><div class="lb-title">${title}</div>${rows}</div>`;
+    </div>`;
+  const top3 = list.slice(0,3).map(rowHtml).join('');
+  const rest = list.slice(3);
+  let tail = '';
+  if(rest.length>0){
+    const restRows = rest.map((e,i)=>rowHtml(e,i+3)).join('');
+    tail = `<div class="lb-extra" id="lb-extra-${panelId}" style="display:none;">${restRows}</div>
+      <button class="lb-toggle" id="lb-toggle-${panelId}" onclick="toggleLbExtra('${panelId}')">Show ${rest.length} more ▾</button>`;
+  }
+  return `<div class="lb-panel"><div class="lb-title">${title}</div>${top3}${tail}</div>`;
+}
+
+function toggleLbExtra(panelId){
+  const extra = document.getElementById('lb-extra-'+panelId);
+  const btn = document.getElementById('lb-toggle-'+panelId);
+  const nowHidden = extra.style.display !== 'none';
+  extra.style.display = nowHidden ? 'none' : 'block';
+  btn.textContent = nowHidden ? `Show ${extra.children.length} more ▾` : 'Show less ▴';
 }
 
 function renderLeaderboard(){
   const lb = buildLeaderboard(currentBf);
   document.getElementById('lbGrid').innerHTML =
-    renderLbPanel('Most Kills', lb.kills, 'k') +
-    renderLbPanel('Most Assists', lb.assist, 'a') +
-    renderLbPanel('Fewest Deaths', lb.death, 'd') +
-    renderLbPanel(lb.objLabel, lb.obj, 'obj');
+    renderLbPanel('Most Kills', lb.kills, 'k', 'kills') +
+    renderLbPanel('Most Assists', lb.assist, 'a', 'assist') +
+    renderLbPanel('Fewest Deaths', lb.death, 'd', 'death') +
+    renderLbPanel(lb.objLabel, lb.obj, 'obj', 'obj');
 }
 
 // ---------- KPI info panel (built from the same KPI object used for pass/fail) ----------
@@ -975,6 +1036,14 @@ function setupListeners(){
       renderPlayerList();
       // the info panel's third table is specific to the selected match, so it has to follow the filter
       if(document.getElementById('kpiInfoPanel').style.display !== 'none') renderKpiInfoPanel();
+      // reflect this section's own choice back onto the match strip, but don't push it onto
+      // Team Composition — only an actual card click does that two-way jump
+      if(id==='matchFilter'){
+        const v = document.getElementById('matchFilter').value;
+        document.querySelectorAll('#matchStrip .match-card').forEach(card=>{
+          card.classList.toggle('selected', v!=='all' && parseInt(card.dataset.match,10)===parseInt(v,10));
+        });
+      }
     });
   });
   document.getElementById('searchBox').addEventListener('input', renderPlayerList);
