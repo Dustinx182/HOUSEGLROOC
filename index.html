@@ -158,6 +158,23 @@
   .lb-value{font-size:14px; font-weight:800; color:var(--text); white-space:nowrap; flex-shrink:0;}
   .lb-empty{font-size:11px; color:var(--text-dim); padding:4px 0 2px;}
 
+  /* team composition */
+  .comp-row{margin-bottom:12px;}
+  .comp-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; font-size:11.5px;}
+  .comp-head .job{font-weight:700; color:var(--text);}
+  .comp-head .counts{color:var(--text-dim); font-size:10.5px;}
+  .comp-head .counts b{color:var(--text);}
+  .comp-bar{display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--panel-2);}
+  .comp-bar .house{background:var(--gold); min-width:0;}
+  .comp-bar .opp{background:var(--loss); min-width:0;}
+  .comp-bar .empty-both{flex:1; display:flex; align-items:center; justify-content:center;
+    font-size:9px; color:var(--text-dim);}
+  .comp-legend{display:flex; gap:14px; font-size:10.5px; color:var(--text-dim); margin-bottom:14px;}
+  .comp-legend span{display:flex; align-items:center; gap:5px;}
+  .comp-legend .dot{width:9px; height:9px; border-radius:3px; display:inline-block;}
+  .comp-legend .dot.house{background:var(--gold);}
+  .comp-legend .dot.opp{background:var(--loss);}
+
   /* filter bar */
   .filter-bar{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
   select, input[type="search"]{
@@ -229,6 +246,7 @@
     .chart-full{grid-column:1 / -1;}
     .chart-panel canvas{max-height:260px;}
     .lb-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+    #compGrid{display:grid; grid-template-columns:1fr 1fr; gap:0 24px; align-content:start;}
   }
 </style>
 </head>
@@ -255,6 +273,14 @@
   <section>
     <div class="section-head"><h2>Match Record</h2></div>
     <div class="match-strip" id="matchStrip"></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Team Composition</h2></div>
+    <div class="lb-sub-note">Which jobs each side fielded, per match · follows the Sub/Main toggle above</div>
+    <div style="height:10px;"></div>
+    <select id="compMatchFilter" style="width:100%; margin-bottom:12px;"></select>
+    <div id="compGrid"></div>
   </section>
 
   <section>
@@ -698,6 +724,46 @@ function renderPlayerList(){
   }).join('');
 }
 
+// ---------- Team Composition ----------
+const COMP_JOBS = ['Sniper/Stalker/GS','Doram','Mage','LK/Paladin','Biochemist','Bard/Gypsy','Priest'];
+
+function buildComposition(bf, matchNo){
+  const active = p => (p.k+p.a+p.d+(p.mon||0)+(p.tab||0))>0;
+  const countBy = arr => {
+    const c = {}; COMP_JOBS.forEach(j=>c[j]=0);
+    arr.filter(p=>p.bf===bf && p.match===matchNo && active(p)).forEach(p=>{
+      if(c[p.kpiJob]!==undefined) c[p.kpiJob]++;
+    });
+    return c;
+  };
+  return { house: countBy(DASH.players), opp: countBy(DASH.opponents || []) };
+}
+
+function renderComposition(){
+  const sel = document.getElementById('compMatchFilter');
+  if(sel.options.length===0){
+    sel.innerHTML = DASH.matches.map(m=>`<option value="${m.match}">M${m.match} vs ${m.opp} (${m.result})</option>`).join('');
+    sel.value = DASH.matches[DASH.matches.length-1].match; // default to the most recent match
+  }
+  const matchNo = parseInt(sel.value, 10);
+  const comp = buildComposition(currentBf, matchNo);
+  const rows = COMP_JOBS.map(job=>{
+    const h = comp.house[job], o = comp.opp[job], total = h+o;
+    const barInner = total===0
+      ? `<div class="empty-both">nobody fielded this job</div>`
+      : `<div class="house" style="flex:${h}"></div><div class="opp" style="flex:${o}"></div>`;
+    return `<div class="comp-row">
+      <div class="comp-head">
+        <span class="job">${job}</span>
+        <span class="counts"><b>${h}</b> HOUSE &nbsp;·&nbsp; <b>${o}</b> Opponent</span>
+      </div>
+      <div class="comp-bar">${barInner}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('compGrid').innerHTML =
+    `<div class="comp-legend"><span><i class="dot house"></i>HOUSE</span><span><i class="dot opp"></i>Opponent</span></div>${rows}`;
+}
+
 // ---------- Top Performers leaderboard ----------
 // Total across all 4 matches, HOUSE roster only (DASH.opponents is never touched here), same
 // "active" filter as everywhere else (a 0/0/0/0 line is a roster slot that didn't play).
@@ -897,11 +963,13 @@ function setupListeners(){
   const onBfChange = (bf)=>{
     currentBf = bf;
     renderTrendCharts();
+    renderComposition();
     renderLeaderboard();
     renderPlayerList();
     if(document.getElementById('kpiInfoPanel').style.display !== 'none') renderKpiInfoPanel();
   };
   setupToggle('trendBfToggle', onBfChange);
+  document.getElementById('compMatchFilter').addEventListener('change', renderComposition);
   ['matchFilter','jobFilter','sortFilter'].forEach(id=>{
     document.getElementById(id).addEventListener('change', ()=>{
       renderPlayerList();
@@ -916,6 +984,7 @@ function initApp(){
   setupListeners();
   buildMatchMedians();
   renderMatchStrip();
+  renderComposition();
   renderTrendCharts();
   renderLeaderboard();
   populateFilters();
