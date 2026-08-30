@@ -79,11 +79,22 @@
   .kpi-info-panel .bi-ok-dot{color:var(--win);}
 
   .sticky-filters{
-    position:sticky; top:58px; z-index:40;
+    position:sticky; top:112px; z-index:40;
     background:rgba(15,17,21,0.96); backdrop-filter:blur(6px);
     padding:8px 2px 10px; margin:0 -2px 4px;
     border-bottom:1px solid var(--border);
   }
+
+  /* global battlefield toggle — sits between the header and <main>, so position:sticky pins it
+     for the ENTIRE page scroll (its containing block is unbounded), not just within one section.
+     top-offset value is measured against the real rendered header height, not guessed. */
+  .global-toggle-bar{
+    position:sticky; top:59px; z-index:45;
+    background:rgba(15,17,21,0.96); backdrop-filter:blur(6px);
+    padding:8px 12px; border-bottom:1px solid var(--border);
+  }
+  .global-toggle-bar .toggle-group{max-width:720px; margin:0 auto;}
+  @media (min-width:860px){ .global-toggle-bar .toggle-group{max-width:1180px;} }
 
   .player-group-head{
     display:flex; align-items:center; gap:8px; margin:14px 4px 6px;
@@ -99,15 +110,6 @@
   .player-group-head .pg-rate.bad{background:rgba(224,92,92,0.18); color:var(--loss);}
   .player-group{margin-bottom:4px;}
   .player-group .player-card{margin-bottom:6px; margin-left:6px;}
-
-  /* stat cards */
-  .stat-row{display:grid; grid-template-columns:repeat(2,1fr); gap:8px;}
-  .stat-card{
-    background:var(--panel); border:1px solid var(--border); border-radius:10px;
-    padding:10px 8px; text-align:center;
-  }
-  .stat-card .v{font-size:18px; font-weight:800; color:var(--gold); line-height:1.1;}
-  .stat-card .l{font-size:9.5px; color:var(--text-dim); margin-top:3px; text-transform:uppercase; letter-spacing:0.04em;}
 
   /* battlefield toggle */
   .toggle-group{display:flex; background:var(--panel-2); border:1px solid var(--border); border-radius:9px; padding:3px; gap:3px;}
@@ -137,6 +139,24 @@
   .chart-panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 10px 6px;}
   .chart-grid{display:flex; flex-direction:column; gap:10px;}
   .chart-panel canvas{max-height:220px;}
+
+  /* leaderboard */
+  .lb-sub-note{font-size:10.5px; color:var(--text-dim); margin:0 4px;}
+  .lb-grid{display:flex; flex-direction:column; gap:10px;}
+  .lb-panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px;}
+  .lb-panel .lb-title{font-size:11px; font-weight:800; color:var(--gold); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;}
+  .lb-row{display:flex; align-items:center; gap:9px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04);}
+  .lb-row:last-child{border-bottom:none;}
+  .lb-rank{width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center;
+    font-size:11px; font-weight:800; flex-shrink:0;}
+  .lb-rank.r1{background:rgba(212,169,76,0.22); color:var(--gold);}
+  .lb-rank.r2{background:rgba(200,204,214,0.16); color:#c9cdd6;}
+  .lb-rank.r3{background:rgba(198,131,74,0.22); color:#c9834a;}
+  .lb-info{flex:1; min-width:0;}
+  .lb-name{font-size:12.5px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .lb-meta{font-size:9.5px; color:var(--text-dim); margin-top:1px;}
+  .lb-value{font-size:14px; font-weight:800; color:var(--text); white-space:nowrap; flex-shrink:0;}
+  .lb-empty{font-size:11px; color:var(--text-dim); padding:4px 0 2px;}
 
   /* filter bar */
   .filter-bar{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
@@ -205,10 +225,10 @@
   /* ---------- wide-screen layout (desktop / tablet) ---------- */
   @media (min-width: 860px){
     main{max-width:1180px;}
-    .stat-row{grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));}
     .chart-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start;}
     .chart-full{grid-column:1 / -1;}
     .chart-panel canvas{max-height:260px;}
+    .lb-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
   }
 </style>
 </head>
@@ -223,11 +243,14 @@
   <div class="record-pill" id="recordPill">–</div>
 </header>
 
-<main id="appBody">
+<div class="global-toggle-bar">
+  <div class="toggle-group" id="trendBfToggle">
+    <button data-bf="Sub">Sub-Battlefield</button>
+    <button data-bf="Main" class="active">Main Battlefield</button>
+  </div>
+</div>
 
-  <section>
-    <div class="stat-row" id="statRow"></div>
-  </section>
+<main id="appBody">
 
   <section>
     <div class="section-head"><h2>Match Record</h2></div>
@@ -236,10 +259,7 @@
 
   <section>
     <div class="section-head"><h2>Team Trends</h2></div>
-    <div class="toggle-group" id="trendBfToggle">
-      <button data-bf="Sub">Sub-Battlefield</button>
-      <button data-bf="Main" class="active">Main Battlefield</button>
-    </div>
+    <div class="lb-sub-note">The Sub/Main toggle pinned above also controls Top Performers and Player KPI Check further down</div>
     <div style="height:12px;"></div>
     <div class="chart-grid">
       <div class="chart-panel">
@@ -255,17 +275,19 @@
   </section>
 
   <section>
+    <div class="section-head"><h2>Top Performers</h2></div>
+    <div class="lb-sub-note">Totals across all 4 matches · HOUSE roster only · must have played 2+ matches to rank · follows the Team Trends toggle above</div>
+    <div style="height:12px;"></div>
+    <div class="lb-grid" id="lbGrid"></div>
+  </section>
+
+  <section>
     <div class="section-head">
       <h2>Player KPI Check</h2>
       <button id="kpiInfoToggle" class="info-link">ℹ️ How is this calculated?</button>
     </div>
     <div id="kpiInfoPanel" class="kpi-info-panel" style="display:none;"></div>
     <div class="sticky-filters">
-      <div class="toggle-group" id="kpiBfToggle">
-        <button data-bf="Sub">Sub-Battlefield</button>
-        <button data-bf="Main" class="active">Main Battlefield</button>
-      </div>
-      <div style="height:10px;"></div>
       <div class="filter-bar">
         <select id="matchFilter"></select>
         <select id="jobFilter"></select>
@@ -426,39 +448,34 @@ function evalPlayer(p){
      vsMedian: vsMedian(p.d, baseline.d, true), baseVal: baseline.d,
      vsMatch: vsMedian(p.d, mm.d, true), matchVal_: mm.d},
   ];
-  const applicableChecks = checks.filter(c=>c.pass!==null);
-  const fails = applicableChecks.filter(c=>c.pass===false).length;
+  // passFinal is what actually colours the chip and counts toward PASS/MISS — pass (the raw league-target
+  // check) is kept alongside it for the tag text, but is no longer the only way to go green. A chip that
+  // misses the league target still turns green if it clears BOTH other tiers (HOUSE median and match median,
+  // ties counting as clearing). Missing data is never counted in the player's favour: if either of those two
+  // tiers has nothing to compare against, that path is simply unavailable and the chip stays on pass alone.
+  checks.forEach(c=>{
+    if(c.pass===null){ c.passFinal=null; return; }
+    if(c.pass===true){ c.passFinal=true; return; }
+    const clearsHouse = c.vsMedian==='better' || c.vsMedian==='at';
+    const clearsMatch = c.vsMatch==='better' || c.vsMatch==='at';
+    c.passFinal = clearsHouse && clearsMatch;
+  });
+  const applicableChecks = checks.filter(c=>c.passFinal!==null);
+  const fails = applicableChecks.filter(c=>c.passFinal===false).length;
   return {checks, fails, applicable:applicableChecks.length};
 }
 
 // ---------- state ----------
-let trendBf = 'Main';
-let kpiBf = 'Main';
-
-// ---------- stat cards ----------
-function renderStats(){
-  const subP = DASH.players.filter(p=>p.bf==='Sub');
-  const mainP = DASH.players.filter(p=>p.bf==='Main');
-  const totK = DASH.players.reduce((s,p)=>s+p.k,0);
-  const totD = DASH.players.reduce((s,p)=>s+p.d,0);
-  const totA = DASH.players.reduce((s,p)=>s+p.a,0);
-  const totMon = DASH.players.reduce((s,p)=>s+(p.mon||0),0);
-  const wins = DASH.matches.filter(m=>m.result==='Win').length;
-  document.getElementById('recordPill').textContent = `${wins}W – ${DASH.matches.length-wins}L`;
-  const cards = [
-    {v: totK.toLocaleString(), l:'Total Kills'},
-    {v: totD.toLocaleString(), l:'Total Deaths'},
-    {v: totA.toLocaleString(), l:'Total Assists'},
-    {v: totMon.toLocaleString(), l:'Total Monsters'},
-    {v: `${wins}/${DASH.matches.length}`, l:'Matches Won'},
-  ];
-  document.getElementById('statRow').innerHTML = cards.map(c=>
-    `<div class="stat-card"><div class="v">${c.v}</div><div class="l">${c.l}</div></div>`
-  ).join('');
-}
+// Single shared state for the Sub/Main toggle. Trends, Top Performers, and Player KPI Check all
+// read from this one variable — three toggle controls stay in the UI (one per section, so you
+// don't have to scroll back up to switch), but clicking any of them moves all three sections
+// together, so it's never possible to have two sections silently showing different battlefields.
+let currentBf = 'Main';
 
 // ---------- match strip ----------
 function renderMatchStrip(){
+  const wins = DASH.matches.filter(m=>m.result==='Win').length;
+  document.getElementById('recordPill').textContent = `${wins}W – ${DASH.matches.length-wins}L`;
   document.getElementById('matchStrip').innerHTML = DASH.matches.map(m=>{
     const sk=m.sub.k, sd=m.sub.d, mk=m.main.k, md=m.main.d;
     return `<div class="match-card">
@@ -485,12 +502,12 @@ function renderTrendCharts(){
     return;
   }
   const labels = DASH.matches.map(m=>`M${m.match}\nvs ${m.opp}`);
-  const kills = DASH.matches.map(m=>m[trendBf.toLowerCase()].k);
-  const deaths = DASH.matches.map(m=>m[trendBf.toLowerCase()].d);
-  const assists = DASH.matches.map(m=>m[trendBf.toLowerCase()].a);
-  const objKey = trendBf==='Sub' ? 'mon' : 'tab';
-  const objLabel = trendBf==='Sub' ? 'Monsters' : 'Tablets';
-  const objValues = DASH.matches.map(m=>m[trendBf.toLowerCase()][objKey]);
+  const kills = DASH.matches.map(m=>m[currentBf.toLowerCase()].k);
+  const deaths = DASH.matches.map(m=>m[currentBf.toLowerCase()].d);
+  const assists = DASH.matches.map(m=>m[currentBf.toLowerCase()].a);
+  const objKey = currentBf==='Sub' ? 'mon' : 'tab';
+  const objLabel = currentBf==='Sub' ? 'Monsters' : 'Tablets';
+  const objValues = DASH.matches.map(m=>m[currentBf.toLowerCase()][objKey]);
   const barColors = DASH.matches.map(m=>m.result==='Win' ? 'rgba(63,184,127,0.75)' : 'rgba(224,92,92,0.7)');
 
   const ctxKD = document.getElementById('kdChart').getContext('2d');
@@ -572,7 +589,7 @@ function populateFilters(){
 
 function renderMetricChips(ev){
   return ev.checks.map(c=>{
-    if(c.pass===null) return `<div class="metric na"><div class="mv">${c.val ?? '—'}</div><div class="mt">${c.label}</div></div>`;
+    if(c.passFinal===null) return `<div class="metric na"><div class="mv">${c.val ?? '—'}</div><div class="mt">${c.label}</div></div>`;
     // both tags stay silent when the comparison is unfavorable — they exist to add favorable or
     // neutral context, so a chip that already reads red doesn't get piled onto a second and third time
     const fmt = v => Math.round(v*10)/10;
@@ -583,7 +600,7 @@ function renderMetricChips(ev){
     };
     const tag = tagFor(c.vsMedian, c.baseVal, 'HOUSE median', 'mtag')
               + tagFor(c.vsMatch, c.matchVal_, 'match median', 'mtag-match');
-    return `<div class="metric ${c.pass?'pass':'fail'}"><div class="mv">${c.val}</div><div class="mt">${c.label} /${c.target}</div>${tag}</div>`;
+    return `<div class="metric ${c.passFinal?'pass':'fail'}"><div class="mv">${c.val}</div><div class="mt">${c.label} /${c.target}</div>${tag}</div>`;
   }).join('');
 }
 
@@ -609,7 +626,7 @@ function renderPlayerList(){
   const sortVal = document.getElementById('sortFilter').value;
   const search = document.getElementById('searchBox').value.trim().toLowerCase();
 
-  let rows = DASH.players.filter(p=>p.bf===kpiBf);
+  let rows = DASH.players.filter(p=>p.bf===currentBf);
   // drop roster slots with zero activity in this battlefield (e.g. assigned but didn't actually play) —
   // a 0/0/0/0 line isn't a real performance to judge, it's non-participation
   rows = rows.filter(p => (p.k + p.a + p.d + (p.mon||0) + (p.tab||0)) > 0);
@@ -681,11 +698,84 @@ function renderPlayerList(){
   }).join('');
 }
 
+// ---------- Top Performers leaderboard ----------
+// Total across all 4 matches, HOUSE roster only (DASH.opponents is never touched here), same
+// "active" filter as everywhere else (a 0/0/0/0 line is a roster slot that didn't play).
+// Chosen deliberately as TOTAL, not per-match average: this rewards whoever contributed the
+// most across the season, so a player who suited up for all 4 matches naturally outranks a
+// single-match substitute with a flashier one-off game. Ties break alphabetically by name.
+function buildLeaderboard(bf){
+  const MIN_LB_MATCHES = 2; // must have played at least this many matches on this battlefield to be ranked
+  const rows = DASH.players.filter(p=>p.bf===bf && (p.k+p.a+p.d+(p.mon||0)+(p.tab||0))>0);
+  const byPlayer = {};
+  rows.forEach(p=>{ (byPlayer[p.name] = byPlayer[p.name] || []).push(p); });
+  const objKey = bf==='Sub' ? 'mon' : 'tab';
+  // A single easy match makes "0 deaths" trivial to reach by luck, not consistency — 0 across 4
+  // is a real record. Kills/Assist/Tablet/Monster are TOTALS, which already need volume to rank
+  // high, so this floor rarely changes those; it exists mainly to keep Fewest Deaths honest.
+  const entries = Object.values(byPlayer)
+    .filter(ps=>ps.length>=MIN_LB_MATCHES)
+    .map(ps=>{
+      ps.sort((a,b)=>a.match-b.match);
+      const latest = ps[ps.length-1]; // most recent job/role, in case it changed match to match
+      const sum = key => ps.reduce((s,p)=>s+(p[key]||0), 0);
+      return {name:latest.name, job:latest.job, n:ps.length,
+              k:sum('k'), a:sum('a'), d:sum('d'), obj:sum(objKey)};
+    });
+  // Tie-break: when the primary stat is equal, rank by Assist total instead — a real signal of
+  // overall contribution rather than an arbitrary alphabetical cut. The Most Assists panel can't
+  // tie-break on itself, so it falls back to Kills; alphabetical is the last-resort tie-break only
+  // for the (very rare) case where even that secondary stat is also identical.
+  const topN = (key, dir) => {
+    const secondary = key==='a' ? 'k' : 'a';
+    return [...entries]
+      .sort((x,y)=> {
+        const primary = dir==='desc' ? y[key]-x[key] : x[key]-y[key];
+        if(primary!==0) return primary;
+        const sec = y[secondary]-x[secondary]; // higher secondary always wins, regardless of primary's direction
+        if(sec!==0) return sec;
+        return x.name.localeCompare(y.name);
+      })
+      .slice(0,3);
+  };
+  return {
+    kills:  topN('k','desc'),
+    assist: topN('a','desc'),
+    death:  topN('d','asc'),
+    obj:    topN('obj','desc'),
+    objLabel: bf==='Sub' ? 'Most Monsters' : 'Most Tablets',
+  };
+}
+
+function renderLbPanel(title, list, key){
+  if(list.length===0) return `<div class="lb-panel"><div class="lb-title">${title}</div><div class="lb-empty">No data yet.</div></div>`;
+  const MEDAL = ['🏆','🥈','🥉']; // rank badge already carries the number, so this is flair on the name, not the only cue
+  const rows = list.map((e,i)=>`
+    <div class="lb-row">
+      <div class="lb-rank r${i+1}">${i+1}</div>
+      <div class="lb-info">
+        <div class="lb-name">${MEDAL[i]} ${e.name}</div>
+        <div class="lb-meta">${e.job} · ${e.n} match${e.n>1?'es':''}</div>
+      </div>
+      <div class="lb-value">${e[key]}</div>
+    </div>`).join('');
+  return `<div class="lb-panel"><div class="lb-title">${title}</div>${rows}</div>`;
+}
+
+function renderLeaderboard(){
+  const lb = buildLeaderboard(currentBf);
+  document.getElementById('lbGrid').innerHTML =
+    renderLbPanel('Most Kills', lb.kills, 'k') +
+    renderLbPanel('Most Assists', lb.assist, 'a') +
+    renderLbPanel('Fewest Deaths', lb.death, 'd') +
+    renderLbPanel(lb.objLabel, lb.obj, 'obj');
+}
+
 // ---------- KPI info panel (built from the same KPI object used for pass/fail) ----------
 function renderKpiInfoPanel(){
-  const table = KPI[kpiBf];
-  const baseline = HOUSE_BASELINE[kpiBf];
-  const monLabel = kpiBf === 'Sub' ? 'Monster' : 'Tablet';
+  const table = KPI[currentBf];
+  const baseline = HOUSE_BASELINE[currentBf];
+  const monLabel = currentBf === 'Sub' ? 'Monster' : 'Tablet';
 
   // ---- third table: the currently-selected match's own per-job medians ----
   const matchSel = document.getElementById('matchFilter');
@@ -697,7 +787,7 @@ function renderKpiInfoPanel(){
     const matchInfo = DASH.matches.find(m => String(m.match) === matchVal);
     const matchLabel = matchInfo ? `M${matchInfo.match} vs ${matchInfo.opp} (${matchInfo.result})` : `Match ${matchVal}`;
     const matchRows = Object.entries(table).map(([job, t])=>{
-      const mm = MATCH_MEDIANS[`${kpiBf}|${matchVal}|${job}`];
+      const mm = MATCH_MEDIANS[`${currentBf}|${matchVal}|${job}`];
       const cellClass = (mv, tv, ceil) => {
         if(!COLOR_MATCH_MEDIAN_TABLE) return '';
         if(mv===null || mv===undefined || tv===null) return 'bi-na';
@@ -753,7 +843,8 @@ function renderKpiInfoPanel(){
   }).join('');
 
   document.getElementById('kpiInfoPanel').innerHTML = `
-    <p><b>${kpiBf}-Battlefield thresholds.</b> For each job, we take every <b>winning</b> roster's own median stat, then take the median of <i>those</i> — so one roster fielding lots of a job (or one blowout win) can't dominate the number by itself; every winning roster counts equally. ${monLabel}, Kills and Assist are floors — clear them to pass. Death is a ceiling, set at the high end of typical variance — stay at or under it to pass. A player with no applicable metric (e.g. Priests don't have a kill target) is scored only on the columns that apply to them.</p>
+    <p><b>${currentBf}-Battlefield thresholds.</b> For each job, we take every <b>winning</b> roster's own median stat, then take the median of <i>those</i> — so one roster fielding lots of a job (or one blowout win) can't dominate the number by itself; every winning roster counts equally. ${monLabel}, Kills and Assist are floors; Death is a ceiling, set at the high end of typical variance. A player with no applicable metric (e.g. Priests don't have a kill target) is scored only on the columns that apply to them.</p>
+    <p><b>How a chip turns green.</b> Clearing this target is one way. The other: even if you miss it, the chip still turns green when you clear <i>both</i> of the other tiers shown as tags — the <span style="color:var(--gold-dim);font-weight:700;">HOUSE median</span> tag and the <span style="color:var(--dps);font-weight:700;">match median</span> tag (a tie on either counts as clearing it). Missing data never counts in your favour — if one of those tags has nothing to compare against, that path just isn't available and the chip stays on the target alone.</p>
     <table>
       <thead><tr><th>Job</th><th>${monLabel}</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -764,7 +855,7 @@ function renderKpiInfoPanel(){
       <tbody>${baselineRows}</tbody>
     </table>
     ${matchSectionHtml}
-    <p style="margin-top:12px;"><b>How the two tags on each chip differ.</b> The <b style="color:var(--gold-dim);">gold tag</b> ("at/better than HOUSE median") compares you to HOUSE's own long-run typical output — same as the second table above, fixed across all 4 matches. The <b style="color:var(--dps);">blue tag</b> ("vs match median") compares you to everyone who played your job in that exact match, on both sides — your own teammates and the opposing guild's players together. Same numbers as the third table, recomputed live from whatever matches are currently loaded. It only appears when at least ${MIN_MATCH_MEDIAN_N} players across both rosters shared that job; below that, one or two players would just be compared to themselves, which isn't a real comparison, so it's left blank rather than shown as misleading. Both tags stay hidden when the comparison is unfavourable — they're there to add context to a number, not to pile on.</p>`;
+    <p style="margin-top:12px;"><b>How the two tags on each chip differ.</b> The <b style="color:var(--gold-dim);">gold tag</b> ("at/better than HOUSE median") compares you to HOUSE's own long-run typical output — same as the second table above, fixed across all 4 matches. The <b style="color:var(--dps);">blue tag</b> ("vs match median") compares you to everyone who played your job in that exact match, on both sides — your own teammates and the opposing guild's players together. Same numbers as the third table, recomputed live from whatever matches are currently loaded. It only appears when at least ${MIN_MATCH_MEDIAN_N} players across both rosters shared that job; below that, one or two players would just be compared to themselves, which isn't a real comparison, so it's left blank rather than shown as misleading. Both tags stay hidden when the comparison is unfavourable — they're there to add context to a number, not to pile on. <b>They're not just decoration:</b> clearing both is the second way a chip can go green — see "How a chip turns green" above.</p>`;
 }
 
 document.getElementById('kpiInfoToggle').addEventListener('click', ()=>{
@@ -791,12 +882,17 @@ let listenersWired = false;
 function setupListeners(){
   if(listenersWired) return;
   listenersWired = true;
-  setupToggle('trendBfToggle', (bf)=>{ trendBf=bf; renderTrendCharts(); });
-  setupToggle('kpiBfToggle', (bf)=>{
-    kpiBf=bf;
+  // ONE toggle now (under Team Trends) drives all three sections — Trends, Top Performers, and
+  // Player KPI Check. setupToggle already handles this element's own active-button styling on
+  // click; this handler just updates the shared state and re-renders everything downstream of it.
+  const onBfChange = (bf)=>{
+    currentBf = bf;
+    renderTrendCharts();
+    renderLeaderboard();
     renderPlayerList();
     if(document.getElementById('kpiInfoPanel').style.display !== 'none') renderKpiInfoPanel();
-  });
+  };
+  setupToggle('trendBfToggle', onBfChange);
   ['matchFilter','jobFilter','sortFilter'].forEach(id=>{
     document.getElementById(id).addEventListener('change', ()=>{
       renderPlayerList();
@@ -810,9 +906,9 @@ function setupListeners(){
 function initApp(){
   setupListeners();
   buildMatchMedians();
-  renderStats();
   renderMatchStrip();
   renderTrendCharts();
+  renderLeaderboard();
   populateFilters();
   renderPlayerList();
 }
