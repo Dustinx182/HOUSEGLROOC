@@ -82,6 +82,12 @@
   .kpi-info-panel .bi-na{color:var(--text-dim);}
   .kpi-info-panel .bi-short-dot{color:var(--fail);}
   .kpi-info-panel .bi-ok-dot{color:var(--win);}
+  .kpi-info-panel .ip-title{font-size:12.5px; font-weight:800; display:block; margin-bottom:2px;}
+  .kpi-info-panel .ip-gold{color:var(--gold);}
+  .kpi-info-panel .ip-win{color:var(--win);}
+  .kpi-info-panel .ip-teal{color:#5ec8c0;}
+  .kpi-info-panel .ip-blue{color:var(--dps);}
+  .kpi-info-panel .ip-purple{color:var(--support);}
 
   .sticky-filters{
     position:sticky; top:112px; z-index:40;
@@ -275,7 +281,7 @@
   <div class="crest">H</div>
   <div class="titles">
     <h1>HOUSE — Guild League</h1>
-    <div class="sub">Stellar Clash · 4 matches</div>
+    <div class="sub" id="headerSub">Stellar Clash</div>
   </div>
   <div class="record-pill" id="recordPill">–</div>
 </header>
@@ -386,7 +392,7 @@ const KPI = {
 };
 const METRIC_LABEL = {Sub:'Mon', Main:'Tab'};
 
-// ---------- HOUSE's own baseline (median of HOUSE's own per-match medians, all 4 matches, win+loss) ----------
+// ---------- HOUSE's own baseline (median of HOUSE's own per-match medians, all matches, win+loss) ----------
 // Pulled from HOUSE_KPI_Derivation.xlsx Step 6c — same rigor as the KPI table above, kept in sync by hand
 // whenever that workbook's Step 6 is recalculated.
 const HOUSE_BASELINE = {
@@ -518,6 +524,7 @@ let currentBf = 'Main';
 function renderMatchStrip(){
   const wins = DASH.matches.filter(m=>m.result==='Win').length;
   document.getElementById('recordPill').textContent = `${wins}W – ${DASH.matches.length-wins}L`;
+  document.getElementById('headerSub').textContent = `Stellar Clash · ${DASH.matches.length} match${DASH.matches.length===1?'':'es'}`;
   document.getElementById('matchStrip').innerHTML = DASH.matches.map(m=>{
     const sk=m.sub.k, sd=m.sub.d, mk=m.main.k, md=m.main.d;
     return `<div class="match-card" data-match="${m.match}">
@@ -810,10 +817,10 @@ function renderComposition(){
 }
 
 // ---------- Top Performers leaderboard ----------
-// Total across all 4 matches, HOUSE roster only (DASH.opponents is never touched here), same
+// Total across all matches, HOUSE roster only (DASH.opponents is never touched here), same
 // "active" filter as everywhere else (a 0/0/0/0 line is a roster slot that didn't play).
 // Chosen deliberately as TOTAL, not per-match average: this rewards whoever contributed the
-// most across the season, so a player who suited up for all 4 matches naturally outranks a
+// most across the season, so a player who suited up for every match naturally outranks a
 // single-match substitute with a flashier one-off game. Ties break alphabetically by name.
 function buildLeaderboard(bf){
   const MIN_LB_MATCHES = 2; // must have played at least this many matches on this battlefield to be ranked
@@ -909,7 +916,7 @@ function renderKpiInfoPanel(){
   const matchVal = matchSel ? matchSel.value : 'all';
   let matchSectionHtml;
   if(matchVal === 'all'){
-    matchSectionHtml = `<p style="margin-top:12px;"><b>This match's median.</b> Pick a specific match in the filter above (instead of "All matches") to see that match's own per-job median, both rosters pooled, here — it's different every match, so there's no single table to show while "All matches" is selected.</p>`;
+    matchSectionHtml = `<p style="margin-top:12px;"><b class="ip-title ip-blue">This match's median</b>Pick a specific match below (instead of "All matches") to see that match's own per-job median here — it's different every match, so there's nothing to show while "All matches" is selected.</p>`;
   } else {
     const matchInfo = DASH.matches.find(m => String(m.match) === matchVal);
     const matchLabel = matchInfo ? `M${matchInfo.match} vs ${matchInfo.opp} (${matchInfo.result})` : `Match ${matchVal}`;
@@ -939,7 +946,7 @@ function renderKpiInfoPanel(){
       ? ` Colour here means the same thing as the table above, but for the group rather than for HOUSE overall: <span class="bi-short-dot">●</span> red = everyone in that job fell short of the target this match, <span class="bi-ok-dot">●</span> green = the group cleared it.`
       : '';
     matchSectionHtml = `
-      <p style="margin-top:12px;"><b>This match's median — ${matchLabel}.</b> Median of everyone who played that job in this match, HOUSE and the opposing guild pooled together. Blank ("—") means fewer than ${MIN_MATCH_MEDIAN_N} players across both rosters shared that job, too few for a real median.${colourNote}</p>
+      <p style="margin-top:12px;"><b class="ip-title ip-blue">This match's median — ${matchLabel}</b>Everyone who played that job in this one match — HOUSE and the opposing guild pooled together — averaged into a single number. A blank cell just means fewer than ${MIN_MATCH_MEDIAN_N} players shared that job that match, too few to mean anything.${colourNote}</p>
       <table>
         <thead><tr><th>Job</th><th>${monLabel}</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead>
         <tbody>${matchRows}</tbody>
@@ -975,21 +982,21 @@ function renderKpiInfoPanel(){
   }).join('');
 
   document.getElementById('kpiInfoPanel').innerHTML = `
-    <p><b>${currentBf}-Battlefield thresholds.</b> For each job, we take every <b>winning</b> roster's own median stat, then take the median of <i>those</i> — so one roster fielding lots of a job (or one blowout win) can't dominate the number by itself; every winning roster counts equally. ${monLabel}, Kills and Assist are floors; Death is a ceiling, set at the high end of typical variance. A player with no applicable metric (e.g. Priests don't have a kill target) is scored only on the columns that apply to them.</p>
-    <p><b>How a chip turns green.</b> Clearing this target is one way. The other: even if you miss it, the chip still turns green when you clear <i>both</i> of the other tiers shown as tags — the <span style="color:var(--gold-dim);font-weight:700;">HOUSE median</span> tag and the <span style="color:var(--dps);font-weight:700;">match median</span> tag (a tie on either counts as clearing it). Missing data never counts in your favour — if one of those tags has nothing to compare against, that path just isn't available and the chip stays on the target alone.</p>
+    <p><b class="ip-title ip-gold">${currentBf}-Battlefield thresholds</b>This is the bar winning rosters actually clear. For each job, every winning roster's median gets taken, then the median of those medians — so one roster stacked with a job, or one blowout win, can't skew the number by itself. ${monLabel}, Kills, and Assist are minimums to hit. Death is a maximum — go over it and that's a miss. Some jobs don't get a Kills target (Priests, for one); they're only graded on the columns that actually apply to them.</p>
+    <p><b class="ip-title ip-win">How a chip turns green</b>There are two ways in. Clear the target below, and you're green. Miss it, and you can still turn green by beating <i>both</i> tags shown on the chip — the <span style="color:var(--gold-dim);font-weight:700;">HOUSE median</span> tag and the <span style="color:var(--dps);font-weight:700;">match median</span> tag (a tie on either still counts).</p>
     <table>
       <thead><tr><th>Job</th><th>${monLabel}</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <p style="margin-top:12px;"><b>Where HOUSE actually sits.</b> This is HOUSE's own median — win or lose, across all 4 matches, same job-by-job breakdown, same table shape so you can compare directly against the target above. <span class="bi-short-dot">●</span> red = below the target for that cell, <span class="bi-ok-dot">●</span> green = at or clearing it.</p>
+    <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>This is what HOUSE actually does — win or lose, across all matches. Same jobs, same columns as the table above, so you can line them up directly. <span class="bi-short-dot">●</span> red means HOUSE falls short of that target; <span class="bi-ok-dot">●</span> green means HOUSE meets or beats it.</p>
     <table>
       <thead><tr><th>Job</th><th>${monLabel}</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead>
       <tbody>${baselineRows}</tbody>
     </table>
     ${matchSectionHtml}
-    <p style="margin-top:12px;"><b>The two tags:</b></p>
-    <ul style="margin:6px 0 0 18px; padding:0; font-size:11.5px; color:var(--text-dim); line-height:1.6;">
-      <li><b style="color:var(--gold-dim);">Gold</b> — vs HOUSE's own typical output, fixed across all 4 matches.</li>
+    <p style="margin-top:12px;"><b class="ip-title ip-purple">The two tags</b></p>
+    <ul style="margin:2px 0 0 18px; padding:0; font-size:11.5px; color:var(--text-dim); line-height:1.6;">
+      <li><b style="color:var(--gold-dim);">Gold</b> — vs HOUSE's own typical output, fixed across all matches.</li>
       <li><b style="color:var(--dps);">Blue</b> — vs everyone who played your job in that match, both sides. Needs ${MIN_MATCH_MEDIAN_N}+ players sharing it, else blank.</li>
     </ul>`;
 }
