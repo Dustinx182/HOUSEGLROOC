@@ -341,8 +341,8 @@
         <select id="matchFilter"></select>
         <select id="jobFilter"></select>
         <select id="sortFilter">
-          <option value="fail">Most fails first</option>
-          <option value="pass">Fewest fails first</option>
+          <option value="fail">Most red first</option>
+          <option value="pass">Most green first</option>
           <option value="name">Name A–Z</option>
         </select>
       </div>
@@ -497,7 +497,7 @@ function evalPlayer(p){
      vsMedian: vsMedian(p.d, baseline.d, true), baseVal: baseline.d,
      vsMatch: vsMedian(p.d, mm.d, true), matchVal_: mm.d},
   ];
-  // passFinal is what actually colours the chip and counts toward PASS/MISS — pass (the raw league-target
+  // passFinal is what actually colours the chip and counts toward GREEN/RED — pass (the raw league-target
   // check) is kept alongside it for the tag text, but is no longer the only way to go green. A chip that
   // misses the league target still turns green if it clears BOTH other tiers (HOUSE median and match median,
   // ties counting as clearing). Missing data is never counted in the player's favour: if either of those two
@@ -684,7 +684,7 @@ function renderMetricChips(ev){
 
 function renderSingleCard(p, ev, showMatchTag){
   const badge = ev.applicable===0 ? '' :
-    ev.fails===0 ? `<span class="fail-badge ok">PASS</span>` : `<span class="fail-badge bad">${ev.fails} MISS</span>`;
+    ev.fails===0 ? `<span class="fail-badge ok">ALL GREEN</span>` : `<span class="fail-badge bad">${ev.fails} RED</span>`;
   // inside a player group, the name is already shown once in the group header — repeating it
   // on every nested card is noise, so the opponent becomes the primary label instead
   const primaryLabel = showMatchTag ? `vs ${p.opp}` : p.name;
