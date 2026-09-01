@@ -159,6 +159,17 @@
 
   /* chart panel */
   .chart-panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:14px 10px 6px;}
+  .chart-panel-ak{position:relative;}
+  .chart-info-btn{
+    position:absolute; top:8px; right:8px; z-index:5; background:none; border:none; cursor:pointer;
+    font-size:13px; padding:2px 4px; line-height:1; opacity:0.8;
+  }
+  .chart-info-btn:active{opacity:1;}
+  .chart-info-panel{
+    font-size:11px; color:var(--text-dim); line-height:1.55; background:var(--panel-2);
+    border:1px solid var(--border); border-radius:8px; padding:9px 10px; margin-top:10px;
+  }
+  .chart-info-panel b{color:var(--text);}
   .chart-grid{display:flex; flex-direction:column; gap:10px;}
   .chart-panel canvas{max-height:220px;}
 
@@ -276,7 +287,6 @@
   @media (min-width: 860px){
     main{max-width:1180px;}
     .chart-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start;}
-    .chart-full{grid-column:1 / -1;}
     .chart-panel canvas{max-height:260px;}
     .lb-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
     #compGrid{display:grid; grid-template-columns:1fr 1fr; gap:0 24px; align-content:start;}
@@ -325,8 +335,13 @@
       <div class="chart-panel">
         <canvas id="aChart"></canvas>
       </div>
-      <div class="chart-panel chart-full">
+      <div class="chart-panel">
         <canvas id="objChart"></canvas>
+      </div>
+      <div class="chart-panel chart-panel-ak">
+        <button id="akInfoToggle" class="chart-info-btn" title="How is this calculated?">ℹ️</button>
+        <canvas id="akChart"></canvas>
+        <div id="akInfoPanel" class="chart-info-panel" style="display:none;"></div>
       </div>
     </div>
   </section>
@@ -573,12 +588,26 @@ function jumpToMatch(matchNo){
 }
 
 // ---------- trend charts ----------
-let kdChart, aChart, objChart;
+let kdChart, aChart, objChart, akChart;
+// Explains the Assist-per-Kill chart specifically — this is the one metric on the page that
+// isn't self-evident from its label, and it's easy to confuse with a whole-team (Sub+Main
+// combined) version of the same idea, which is a DIFFERENT number from what this chart shows.
+function renderAkInfoPanel(){
+  const bfName = currentBf==='Sub' ? 'Sub-Battlefield' : 'Main Battlefield';
+  const last = DASH.matches[DASH.matches.length-1];
+  const bfKey = currentBf.toLowerCase();
+  const a = last[bfKey].a, k = last[bfKey].k;
+  const ratio = k>0 ? Math.round((a/k)*10)/10 : 0;
+  document.getElementById('akInfoPanel').innerHTML =
+    `<b>Assist per Kill</b> = Team Assists ÷ Team Kills, for <b>${bfName}</b> — HOUSE's own numbers only, never combined with the opponent's.<br><br>` +
+    `Example, M${last.match} vs ${last.opp} (${bfName}): ${a.toLocaleString()} assists ÷ ${k.toLocaleString()} kills = <b>${ratio}</b>.`;
+}
+
 function renderTrendCharts(){
   if(typeof Chart === 'undefined'){
     // the Chart.js CDN script didn't load (blocked network, ad-blocker, restrictive in-app browser) —
     // degrade gracefully instead of throwing, which would otherwise abort the rest of initApp()
-    ['kdChart','aChart','objChart'].forEach(id=>{
+    ['kdChart','aChart','objChart','akChart'].forEach(id=>{
       const el = document.getElementById(id);
       if(el && el.parentElement) el.parentElement.innerHTML =
         '<div class="empty-msg">Charts couldn\'t load (blocked network or ad-blocker). Everything else on this page still works.</div>';
@@ -593,6 +622,9 @@ function renderTrendCharts(){
   const objLabel = currentBf==='Sub' ? 'Monsters' : 'Tablets';
   const objValues = DASH.matches.map(m=>m[currentBf.toLowerCase()][objKey]);
   const barColors = DASH.matches.map(m=>m.result==='Win' ? 'rgba(63,184,127,0.75)' : 'rgba(224,92,92,0.7)');
+  // assists-per-kill isolates "how much support backs each kill" from raw match scale/length —
+  // two matches can have wildly different kill counts and still have the same support quality
+  const assistPerKill = kills.map((k,i)=> k>0 ? Math.round((assists[i]/k)*10)/10 : 0);
 
   const ctxKD = document.getElementById('kdChart').getContext('2d');
   if(kdChart) kdChart.destroy();
@@ -656,6 +688,29 @@ function renderTrendCharts(){
         legend:{display:false},
         title:{display:true, text:`Team ${objLabel} by Match`, color:'#e8e8ec', font:{size:12, weight:'700'}},
         tooltip:{titleFont:{size:11}, bodyFont:{size:11}}
+      },
+      scales:{
+        x:{ticks:{color:'#8b8f9c', font:{size:10}}, grid:{color:'rgba(255,255,255,0.05)'}},
+        y:{ticks:{color:'#8b8f9c', font:{size:10}}, grid:{color:'rgba(255,255,255,0.05)'}, beginAtZero:true}
+      }
+    }
+  });
+
+  const ctxAK = document.getElementById('akChart').getContext('2d');
+  if(akChart) akChart.destroy();
+  akChart = new Chart(ctxAK, {
+    type:'line',
+    data:{ labels, datasets:[
+      {label:'Assist per Kill', data:assistPerKill, borderColor:'#5b9bd5', backgroundColor:'rgba(91,155,213,0.15)',
+       fill:true, tension:0.35, pointBackgroundColor: barColors, pointRadius:5, pointBorderWidth:0, borderWidth:2}
+    ]},
+    options:{
+      responsive:true,
+      onClick:(evt, elements)=>{ if(elements.length) jumpToMatch(DASH.matches[elements[0].index].match); },
+      onHover:(evt, elements)=>{ if(evt.native && evt.native.target) evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
+      plugins:{
+        legend:{display:false},
+        title:{display:true, text:'Assist per Kill by Match', color:'#e8e8ec', font:{size:12, weight:'700'}},
       },
       scales:{
         x:{ticks:{color:'#8b8f9c', font:{size:10}}, grid:{color:'rgba(255,255,255,0.05)'}},
@@ -1022,6 +1077,13 @@ document.getElementById('kpiInfoToggle').addEventListener('click', ()=>{
   if(!open) renderKpiInfoPanel();
 });
 
+document.getElementById('akInfoToggle').addEventListener('click', ()=>{
+  const panel = document.getElementById('akInfoPanel');
+  const open = panel.style.display !== 'none';
+  panel.style.display = open ? 'none' : 'block';
+  if(!open) renderAkInfoPanel();
+});
+
 // ---------- wiring ----------
 function setupToggle(id, onChange){
   const el = document.getElementById(id);
@@ -1048,6 +1110,7 @@ function setupListeners(){
     renderLeaderboard();
     renderPlayerList();
     if(document.getElementById('kpiInfoPanel').style.display !== 'none') renderKpiInfoPanel();
+    if(document.getElementById('akInfoPanel').style.display !== 'none') renderAkInfoPanel();
   };
   setupToggle('trendBfToggle', onBfChange);
   document.getElementById('compMatchFilter').addEventListener('change', renderComposition);
