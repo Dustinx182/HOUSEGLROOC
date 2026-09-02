@@ -599,8 +599,8 @@ function renderAkInfoPanel(){
   const a = last[bfKey].a, k = last[bfKey].k;
   const ratio = k>0 ? Math.round((a/k)*10)/10 : 0;
   document.getElementById('akInfoPanel').innerHTML =
-    `<b>Assist per Kill</b> = Team Assists ÷ Team Kills, for <b>${bfName}</b> — HOUSE's own numbers only, never combined with the opponent's.<br><br>` +
-    `Example, M${last.match} vs ${last.opp} (${bfName}): ${a.toLocaleString()} assists ÷ ${k.toLocaleString()} kills = <b>${ratio}</b>.`;
+    `Assist per Kill = Team Assists ÷ Team Kills, for ${bfName}.<br><br>` +
+    `Example, M${last.match} vs ${last.opp} (${bfName}): ${a.toLocaleString()} assists ÷ ${k.toLocaleString()} kills = ${ratio}.`;
 }
 
 function renderTrendCharts(){
@@ -984,7 +984,7 @@ function renderKpiInfoPanel(){
   const matchVal = matchSel ? matchSel.value : 'all';
   let matchSectionHtml;
   if(matchVal === 'all'){
-    matchSectionHtml = `<p style="margin-top:12px;"><b class="ip-title ip-blue">This match's median</b>Pick a specific match below (instead of "All matches") to see that match's own per-job median here — it's different every match, so there's nothing to show while "All matches" is selected.</p>`;
+    matchSectionHtml = `<p style="margin-top:12px;"><b class="ip-title ip-blue">This match's median</b>Pick a specific match below to see that match's own per-job median. Every match has different numbers, so there's nothing to show for "All matches."</p>`;
   } else {
     const matchInfo = DASH.matches.find(m => String(m.match) === matchVal);
     const matchLabel = matchInfo ? `M${matchInfo.match} vs ${matchInfo.opp} (${matchInfo.result})` : `Match ${matchVal}`;
@@ -1014,7 +1014,7 @@ function renderKpiInfoPanel(){
       ? ` Colour here means the same thing as the table above, but for the group rather than for HOUSE overall: <span class="bi-short-dot">●</span> red = everyone in that job fell short of the target this match, <span class="bi-ok-dot">●</span> green = the group cleared it.`
       : '';
     matchSectionHtml = `
-      <p style="margin-top:12px;"><b class="ip-title ip-blue">This match's median — ${matchLabel}</b>Everyone who played that job in this one match — HOUSE and the opposing guild pooled together — averaged into a single number. A blank cell just means fewer than ${MIN_MATCH_MEDIAN_N} players shared that job that match, too few to mean anything.${colourNote}</p>
+      <p style="margin-top:12px;"><b class="ip-title ip-blue">This match's median: ${matchLabel}</b>This is the median for everyone who played that job in this match. HOUSE and the opposing guild are pooled together. A blank cell means fewer than ${MIN_MATCH_MEDIAN_N} players shared that job. Too few for a median to mean anything.${colourNote}</p>
       <table>
         <thead><tr><th>Job</th><th>${monLabel}</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead>
         <tbody>${matchRows}</tbody>
@@ -1050,13 +1050,13 @@ function renderKpiInfoPanel(){
   }).join('');
 
   document.getElementById('kpiInfoPanel').innerHTML = `
-    <p><b class="ip-title ip-gold">${currentBf}-Battlefield thresholds</b>This is the bar winning rosters actually clear. For each job, every winning roster's median gets taken, then the median of those medians — so one roster stacked with a job, or one blowout win, can't skew the number by itself. ${monLabel}, Kills, and Assist are minimums to hit. Death is a maximum — go over it and that's a miss. Some jobs don't get a Kills target (Priests, for one); they're only graded on the columns that actually apply to them.</p>
-    <p><b class="ip-title ip-win">How a chip turns green</b>There are two ways in. Clear the target below, and you're green. Miss it, and you can still turn green by beating <i>both</i> tags shown on the chip — the <span style="color:var(--gold-dim);font-weight:700;">HOUSE median</span> tag and the <span style="color:var(--dps);font-weight:700;">match median</span> tag (a tie on either still counts).</p>
+    <p><b class="ip-title ip-gold">${currentBf}-Battlefield thresholds</b>These are the targets winning rosters hit. A blank cell means that stat isn't scored for that job.</p>
+    <p><b class="ip-title ip-win">How a chip turns green</b>Clear the target and it turns green. Or beat both tags on the chip: <span style="color:var(--gold-dim);font-weight:700;">HOUSE median</span> and <span style="color:var(--dps);font-weight:700;">match median</span>. A tie on either still counts.</p>
     <table>
       <thead><tr><th>Job</th><th>${monLabel}</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>This is what HOUSE actually does — win or lose, across all matches. Same jobs, same columns as the table above, so you can line them up directly. <span class="bi-short-dot">●</span> red means HOUSE falls short of that target; <span class="bi-ok-dot">●</span> green means HOUSE meets or beats it.</p>
+    <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>This is what HOUSE actually does, win or lose, across all matches. <span class="bi-short-dot">●</span> Red means HOUSE misses the target. <span class="bi-ok-dot">●</span> Green means HOUSE meets or beats it.</p>
     <table>
       <thead><tr><th>Job</th><th>${monLabel}</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead>
       <tbody>${baselineRows}</tbody>
@@ -1064,8 +1064,8 @@ function renderKpiInfoPanel(){
     ${matchSectionHtml}
     <p style="margin-top:12px;"><b class="ip-title ip-purple">The two tags</b></p>
     <ul style="margin:2px 0 0 18px; padding:0; font-size:11.5px; color:var(--text-dim); line-height:1.6;">
-      <li><b style="color:var(--gold-dim);">Gold</b> — vs HOUSE's own typical output, fixed across all matches.</li>
-      <li><b style="color:var(--dps);">Blue</b> — vs everyone who played your job in that match, both sides. Needs ${MIN_MATCH_MEDIAN_N}+ players sharing it, else blank.</li>
+      <li><b style="color:var(--gold-dim);">Gold</b>: compares you to HOUSE's own typical output, fixed across all matches.</li>
+      <li><b style="color:var(--dps);">Blue</b>: compares you to everyone who played your job in that match, both sides. Needs ${MIN_MATCH_MEDIAN_N}+ players sharing it. Otherwise it's blank.</li>
     </ul>`;
 }
 
