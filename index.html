@@ -598,9 +598,12 @@ function renderAkInfoPanel(){
   const bfKey = currentBf.toLowerCase();
   const a = last[bfKey].a, k = last[bfKey].k;
   const ratio = k>0 ? Math.round((a/k)*10)/10 : 0;
+  const oppRows = DASH.opponents.filter(o=>o.match===last.match && o.bf===currentBf);
+  const oa = oppRows.reduce((s,o)=>s+o.a,0), ok = oppRows.reduce((s,o)=>s+o.k,0);
+  const oppRatio = ok>0 ? Math.round((oa/ok)*10)/10 : 0;
   document.getElementById('akInfoPanel').innerHTML =
     `Assist per Kill = Team Assists ÷ Team Kills, for ${bfName}.<br><br>` +
-    `Example, M${last.match} vs ${last.opp} (${bfName}): ${a.toLocaleString()} assists ÷ ${k.toLocaleString()} kills = ${ratio}.`;
+    `Example, M${last.match} vs ${last.opp} (${bfName}): HOUSE ${a.toLocaleString()} assists ÷ ${k.toLocaleString()} kills = ${ratio}. ${last.opp} ${oa.toLocaleString()} assists ÷ ${ok.toLocaleString()} kills = ${oppRatio}.`;
 }
 
 function renderTrendCharts(){
@@ -625,6 +628,13 @@ function renderTrendCharts(){
   // assists-per-kill isolates "how much support backs each kill" from raw match scale/length —
   // two matches can have wildly different kill counts and still have the same support quality
   const assistPerKill = kills.map((k,i)=> k>0 ? Math.round((assists[i]/k)*10)/10 : 0);
+  // opponent's own assist-per-kill, for the same battlefield, summed straight from DASH.opponents —
+  // lets you see whether HOUSE's support ratio is actually ahead of or behind the other side that match
+  const oppAssistPerKill = DASH.matches.map(m=>{
+    const rows = DASH.opponents.filter(o=>o.match===m.match && o.bf===currentBf);
+    const ok = rows.reduce((s,o)=>s+o.k,0), oa = rows.reduce((s,o)=>s+o.a,0);
+    return ok>0 ? Math.round((oa/ok)*10)/10 : 0;
+  });
 
   const ctxKD = document.getElementById('kdChart').getContext('2d');
   if(kdChart) kdChart.destroy();
@@ -701,15 +711,17 @@ function renderTrendCharts(){
   akChart = new Chart(ctxAK, {
     type:'line',
     data:{ labels, datasets:[
-      {label:'Assist per Kill', data:assistPerKill, borderColor:'#5b9bd5', backgroundColor:'rgba(91,155,213,0.15)',
-       fill:true, tension:0.35, pointBackgroundColor: barColors, pointRadius:5, pointBorderWidth:0, borderWidth:2}
+      {label:'HOUSE', data:assistPerKill, borderColor:'#d4a94c', backgroundColor:'rgba(212,169,76,0.12)',
+       fill:false, tension:0.35, pointBackgroundColor:'#d4a94c', pointRadius:4, pointBorderWidth:0, borderWidth:2},
+      {label:'Opponent', data:oppAssistPerKill, borderColor:'#e05c5c', backgroundColor:'rgba(224,92,92,0.12)',
+       fill:false, tension:0.35, pointBackgroundColor:'#e05c5c', pointRadius:4, pointBorderWidth:0, borderWidth:2}
     ]},
     options:{
       responsive:true,
       onClick:(evt, elements)=>{ if(elements.length) jumpToMatch(DASH.matches[elements[0].index].match); },
       onHover:(evt, elements)=>{ if(evt.native && evt.native.target) evt.native.target.style.cursor = elements.length ? 'pointer' : 'default'; },
       plugins:{
-        legend:{display:false},
+        legend:{display:true, position:'bottom', labels:{color:'#c9cdd6', font:{size:10.5}, boxWidth:12, padding:10}},
         title:{display:true, text:'Assist per Kill by Match', color:'#e8e8ec', font:{size:12, weight:'700'}},
       },
       scales:{
