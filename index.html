@@ -129,6 +129,11 @@
     padding:7px 0; font-size:12.5px; font-weight:600; border-radius:6px; cursor:pointer;
   }
   .toggle-group button.active{background:var(--gold); color:#1b1508;}
+  /* sub-tab variant: visually one level down from a normal toggle-group (smaller, lighter
+     active state) — used for controls nested inside a tab, like the stat picker under By Trend */
+  .toggle-group-sub{padding:2px; gap:2px; border-radius:7px; background:transparent; border-color:transparent;}
+  .toggle-group-sub button{padding:5px 0; font-size:10.5px; font-weight:600; color:var(--text-dim);}
+  .toggle-group-sub button.active{background:rgba(212,169,76,0.15); color:var(--gold); font-weight:700;}
 
   /* match pills */
   .match-strip{display:flex; gap:8px; overflow-x:auto; padding:2px 2px 4px;}
@@ -178,6 +183,50 @@
   .lb-grid{display:flex; flex-direction:column; gap:10px;}
   .lb-panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 14px;}
   .lb-panel .lb-title{font-size:11px; font-weight:800; color:var(--gold); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;}
+  .lb-panel .lb-subtitle{font-size:9.5px; color:var(--text-dim); margin:-5px 0 8px; font-style:italic;}
+  .lb-trend-note{font-size:10.5px; color:var(--text-dim); margin-top:8px; line-height:1.5;}
+
+  /* ---- bar chart race ---- */
+  .race-panel{background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px 12px 10px;}
+  .race-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .race-match-label{font-size:13px; font-weight:800; color:var(--gold);}
+  .race-controls{display:flex; gap:6px;}
+  .race-btn{
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:7px; width:30px; height:30px; font-size:12px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; line-height:1;
+  }
+  .race-btn:active{background:var(--gold); color:#1b1508; border-color:var(--gold);}
+  .race-btn-play.playing{background:var(--gold); color:#1b1508; border-color:var(--gold);}
+  .race-bars{position:relative; overflow:hidden;}
+  .race-bar-row{
+    position:absolute; left:0; right:0; height:30px;
+    transition:top 0.6s cubic-bezier(0.4,0,0.2,1), opacity 0.4s;
+    display:flex; align-items:center;
+  }
+  .race-bar-row .race-rank{
+    width:16px; font-size:10px; font-weight:800; color:var(--text-dim); flex-shrink:0; text-align:center;
+  }
+  .race-bar-row .race-bar-track{flex:1; position:relative; height:22px; margin-left:4px;}
+  .race-bar-row .race-bar-fill{
+    position:absolute; left:0; top:0; height:100%; border-radius:5px;
+    transition:width 0.6s cubic-bezier(0.4,0,0.2,1), background-color 0.4s;
+    display:flex; align-items:center; padding:0 8px; min-width:2px;
+  }
+  .race-bar-row .race-name{
+    font-size:10.5px; font-weight:700; color:#1b1508; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .race-bar-row .race-name.outside{color:var(--text); margin-left:6px;}
+  .race-bar-row .race-value{
+    font-size:10.5px; font-weight:800; color:var(--text); margin-left:8px; flex-shrink:0; width:32px;
+  }
+  .race-scrubber{display:flex; gap:4px; margin-top:10px; padding:0 2px;}
+  .race-scrubber .rs-dot{
+    flex:1; height:5px; border-radius:3px; background:var(--panel-2); border:1px solid var(--border);
+    cursor:pointer;
+  }
+  .race-scrubber .rs-dot.active{background:var(--gold); border-color:var(--gold);}
+  .race-scrubber .rs-dot.past{background:var(--gold-dim); border-color:var(--gold-dim);}
   .lb-row{display:flex; align-items:center; gap:9px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.04);}
   .lb-row:last-child{border-bottom:none;}
   .lb-rank{width:22px; height:22px; border-radius:6px; display:flex; align-items:center; justify-content:center;
@@ -187,6 +236,7 @@
   .lb-rank.r3{background:rgba(198,131,74,0.22); color:#c9834a;}
   .lb-info{flex:1; min-width:0;}
   .lb-name{font-size:12.5px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .lb-unit{font-size:9px; font-weight:600; color:var(--text-dim); margin-left:1px;}
   .lb-meta{font-size:9.5px; color:var(--text-dim); margin-top:1px;}
   .lb-value{font-size:14px; font-weight:800; color:var(--text); white-space:nowrap; flex-shrink:0;}
   .lb-empty{font-size:11px; color:var(--text-dim); padding:4px 0 2px;}
@@ -348,8 +398,35 @@
 
   <section>
     <div class="section-head sh-top"><h2>Top Performers</h2></div>
-    <div style="height:12px;"></div>
+    <div class="toggle-group" id="lbViewToggle">
+      <button data-view="overall" class="active">Overall</button>
+      <button data-view="trend">By Trend</button>
+    </div>
+    <div style="height:10px;"></div>
     <div class="lb-grid" id="lbGrid"></div>
+    <div id="lbTrendView" style="display:none;">
+      <div style="height:2px;"></div>
+      <div class="toggle-group toggle-group-sub" id="lbTrendStatToggle">
+        <button data-stat="k" class="active">Kills</button>
+        <button data-stat="a">Assists</button>
+        <button data-stat="d">Deaths</button>
+        <button data-stat="obj">Obj</button>
+      </div>
+      <div style="height:10px;"></div>
+      <div class="race-panel">
+        <div class="race-header">
+          <div class="race-match-label" id="raceMatchLabel">M1 vs ?</div>
+          <div class="race-controls">
+            <button class="race-btn" id="racePrevBtn" title="Previous match">⏮</button>
+            <button class="race-btn race-btn-play" id="racePlayBtn" title="Play">▶</button>
+            <button class="race-btn" id="raceNextBtn" title="Next match">⏭</button>
+          </div>
+        </div>
+        <div class="race-bars" id="raceBars" style="height:280px;"></div>
+        <div class="race-scrubber" id="raceScrubber"></div>
+      </div>
+      <div class="lb-trend-note" id="lbTrendNote"></div>
+    </div>
   </section>
 
   <section>
@@ -542,6 +619,8 @@ function evalPlayer(p){
 // don't have to scroll back up to switch), but clicking any of them moves all three sections
 // together, so it's never possible to have two sections silently showing different battlefields.
 let currentBf = 'Main';
+let lbView = 'overall';   // 'overall' | 'trend' — Top Performers view mode
+let lbTrendStat = 'k';    // which stat the trend chart is currently showing
 
 // ---------- match strip ----------
 function renderMatchStrip(){
@@ -874,7 +953,10 @@ function renderComposition(){
   const sel = document.getElementById('compMatchFilter');
   if(sel.options.length===0){
     sel.innerHTML = DASH.matches.map(m=>`<option value="${m.match}">M${m.match} vs ${m.opp} (${m.result})</option>`).join('');
-    sel.value = DASH.matches[0].match; // default to M1
+    // default to the most recent match, not the first — whoever opens this should land on
+    // current info, not the oldest match in the season. Uses max(), not array order, so this
+    // stays correct even if matches are ever appended out of chronological order.
+    sel.value = Math.max(...DASH.matches.map(m=>m.match));
   }
   const matchNo = parseInt(sel.value, 10);
   const comp = buildComposition(currentBf, matchNo);
@@ -911,14 +993,21 @@ function buildLeaderboard(bf){
   // A single easy match makes "0 deaths" trivial to reach by luck, not consistency — 0 across 4
   // is a real record. Kills/Assist/Tablet/Monster are TOTALS, which already need volume to rank
   // high, so this floor rarely changes those; it exists mainly to keep Fewest Deaths honest.
+  const RECENT_N = 2; // Fewest Deaths looks at recent form, not the whole season
   const entries = Object.values(byPlayer)
     .filter(ps=>ps.length>=MIN_LB_MATCHES)
     .map(ps=>{
       ps.sort((a,b)=>a.match-b.match);
       const latest = ps[ps.length-1]; // most recent job/role, in case it changed match to match
       const sum = key => ps.reduce((s,p)=>s+(p[key]||0), 0);
+      // last RECENT_N appearances this player actually had, not last RECENT_N matches on the
+      // calendar — someone who sat out the most recent match is judged on the games they played
+      const recent = ps.slice(-RECENT_N);
+      const dRecent = recent.reduce((s,p)=>s+(p.d||0), 0);
       return {name:latest.name, job:latest.job, n:ps.length,
-              k:sum('k'), a:sum('a'), d:sum('d'), obj:sum(objKey)};
+              k:sum('k'), a:sum('a'), d:sum('d'), obj:sum(objKey),
+              dRecent, recentN: recent.length,
+              recentMatches: recent.map(p=>p.match)};
     });
   // Tie-break: when the primary stat is equal, rank by Assist total instead — a real signal of
   // overall contribution rather than an arbitrary alphabetical cut. The Most Assists panel can't
@@ -939,7 +1028,7 @@ function buildLeaderboard(bf){
   return {
     kills:  topN('k','desc'),
     assist: topN('a','desc'),
-    death:  topN('d','asc'),
+    death:  topN('dRecent','asc'),
     obj:    topN('obj','desc'),
     objLabel: bf==='Sub' ? 'Most Monsters' : 'Most Tablets',
   };
@@ -948,12 +1037,16 @@ function buildLeaderboard(bf){
 function renderLbPanel(title, list, key, panelId){
   if(list.length===0) return `<div class="lb-panel"><div class="lb-title">${title}</div><div class="lb-empty">No data yet.</div></div>`;
   const MEDAL = ['🏆','🥈','🥉']; // rank badge already carries the number, so this is flair on the name, not the only cue
+  // Fewest Deaths looks at recent form: total deaths across each player's last 2 appearances,
+  // not their whole-season total — a stale "0 deaths from one lucky match 4 games ago" shouldn't
+  // outrank someone whose last two matches were genuinely clean. Every other panel is a season total.
+  const isRecent = key === 'dRecent';
   const rowHtml = (e,i) => `
     <div class="lb-row">
       <div class="lb-rank r${i<3 ? i+1 : ''}">${i+1}</div>
       <div class="lb-info">
         <div class="lb-name">${MEDAL[i] || ''} ${e.name}</div>
-        <div class="lb-meta">${e.n} match${e.n>1?'es':''}</div>
+        <div class="lb-meta">${isRecent ? `last ${e.recentN} match${e.recentN>1?'es':''} (M${e.recentMatches.join(', M')})` : `${e.n} match${e.n>1?'es':''}`}</div>
       </div>
       <div class="lb-value">${e[key]}</div>
     </div>`;
@@ -965,7 +1058,8 @@ function renderLbPanel(title, list, key, panelId){
     tail = `<div class="lb-extra" id="lb-extra-${panelId}" style="display:none;">${restRows}</div>
       <button class="lb-toggle" id="lb-toggle-${panelId}" onclick="toggleLbExtra('${panelId}')">Show ${rest.length} more ▾</button>`;
   }
-  return `<div class="lb-panel"><div class="lb-title">${title}</div>${top3}${tail}</div>`;
+  const subtitle = isRecent ? `<div class="lb-subtitle">based on last 2 matches played</div>` : '';
+  return `<div class="lb-panel"><div class="lb-title">${title}</div>${subtitle}${top3}${tail}</div>`;
 }
 
 function toggleLbExtra(panelId){
@@ -981,9 +1075,175 @@ function renderLeaderboard(){
   document.getElementById('lbGrid').innerHTML =
     renderLbPanel('Most Kills', lb.kills, 'k', 'kills') +
     renderLbPanel('Most Assists', lb.assist, 'a', 'assist') +
-    renderLbPanel('Fewest Deaths', lb.death, 'd', 'death') +
+    renderLbPanel('Fewest Deaths', lb.death, 'dRecent', 'death') +
     renderLbPanel(lb.objLabel, lb.obj, 'obj', 'obj');
+  if(lbView === 'trend') renderLbTrendChart();
 }
+
+// ---------- Top Performers: "By Trend" line chart ----------
+// Pulls the SAME top-5 the Overall tab already ranked (including Fewest Deaths' recent-form
+// ranking), then plots each of those 5 players' raw per-match value across the whole season —
+// Overall answers "who's best right now", this answers "how did they get there".
+let lbTrendChart;
+// ---------- Top Performers: "By Trend" bar chart race ----------
+// Every match is a frame: top N active players for the selected stat, ranked and bar-sized.
+// Press play and it animates through the season, bars reordering and resizing as ranks shift —
+// answers "how did this season actually unfold", which a static chart can't really show.
+const RACE_TOP_N = 8;
+const RACE_ROW_H = 34;
+const RACE_INTERVAL_MS = 1400;
+const RACE_PALETTE = ['#d4a94c','#5b9bd5','#c98fd4','#3fb87f','#e05c5c','#f0a868','#7ec8e3','#b088d6','#6fcf97','#ff8fa3'];
+
+let raceState = null;      // {frames, maxVal}
+let raceIdx = 0;
+let racePlaying = false;
+let raceTimer = null;
+let raceColorMap = {};
+let raceColorIdx = 0;
+
+function getRaceColor(name){
+  if(!raceColorMap[name]){
+    raceColorMap[name] = RACE_PALETTE[raceColorIdx % RACE_PALETTE.length];
+    raceColorIdx++;
+  }
+  return raceColorMap[name];
+}
+
+function buildRaceFrames(bf, statKey){
+  const objKey = bf==='Sub' ? 'mon' : 'tab';
+  const valOf = p => statKey==='obj' ? (p[objKey]||0) : p[statKey];
+  const isActive = p => (p.k+p.a+p.d+(p.mon||0)+(p.tab||0)) > 0;
+  // fewer deaths is better everywhere else on this page, so the race ranks the same way here
+  const cmp = statKey==='d' ? (a,b)=>a.cum-b.cum : (a,b)=>b.cum-a.cum;
+  // running SEASON TOTAL as of each match, not that match's own number — a real bar chart race
+  // accumulates, so bars only grow and standings shift because someone else caught up, not
+  // because a strong or weak match made a bar jump around from one frame to the next.
+  const cumulative = {};
+  let maxVal = 1;
+  const frames = DASH.matches.map(m=>{
+    const rows = DASH.players.filter(p=>p.bf===bf && p.match===m.match && isActive(p));
+    rows.forEach(p=>{ cumulative[p.name] = (cumulative[p.name] || 0) + valOf(p); });
+    // once someone's on the board they stay ranked on their running total even in a match they
+    // sat out — same as a real race, a runner who drops back doesn't vanish, they just stop gaining
+    const standings = Object.entries(cumulative).map(([name,cum])=>({name, cum}));
+    standings.forEach(s=>{ maxVal = Math.max(maxVal, s.cum); });
+    const ranked = [...standings].sort(cmp).slice(0, RACE_TOP_N);
+    return {
+      match: m.match, opp: m.opp, result: m.result,
+      rows: ranked.map((s,i)=>({name:s.name, value:s.cum, rank:i+1}))
+    };
+  });
+  return {frames, maxVal};
+}
+
+function renderRaceFrame(){
+  const frame = raceState.frames[raceIdx];
+  document.getElementById('raceMatchLabel').textContent = `M${frame.match} vs ${frame.opp} (${frame.result})`;
+  const container = document.getElementById('raceBars');
+  const existing = {};
+  container.querySelectorAll('.race-bar-row').forEach(el=>{ existing[el.dataset.name] = el; });
+
+  const seen = new Set();
+  frame.rows.forEach((r,i)=>{
+    seen.add(r.name);
+    let el = existing[r.name];
+    let justCreated = false;
+    if(!el){
+      el = document.createElement('div');
+      el.className = 'race-bar-row';
+      el.dataset.name = r.name;
+      el.innerHTML = `<div class="race-rank"></div>
+        <div class="race-bar-track"><div class="race-bar-fill"><span class="race-name"></span></div></div>
+        <span class="race-value"></span>`;
+      el.style.top = (i * RACE_ROW_H) + 'px';
+      el.style.opacity = '0';
+      container.appendChild(el);
+      justCreated = true;
+    }
+    el.style.top = (i * RACE_ROW_H) + 'px';
+    el.style.opacity = '1';
+    el.querySelector('.race-rank').textContent = '#' + r.rank;
+    const pct = Math.max(4, Math.round((r.value / raceState.maxVal) * 100));
+    const fill = el.querySelector('.race-bar-fill');
+    const color = getRaceColor(r.name);
+    fill.style.backgroundColor = color;
+    fill.querySelector('.race-name').textContent = r.name;
+    el.querySelector('.race-value').textContent = r.value;
+    if(justCreated){
+      // set width AFTER insertion so the fill animates in from 0 instead of popping to size
+      fill.style.width = '4%';
+      requestAnimationFrame(()=>{ fill.style.width = pct + '%'; });
+    } else {
+      fill.style.width = pct + '%';
+    }
+  });
+
+  Object.keys(existing).forEach(name=>{
+    if(!seen.has(name)){
+      const el = existing[name];
+      el.style.opacity = '0';
+      el.style.top = (RACE_TOP_N * RACE_ROW_H) + 'px';
+      setTimeout(()=>{ if(el.parentElement) el.parentElement.removeChild(el); }, 650);
+    }
+  });
+
+  document.querySelectorAll('#raceScrubber .rs-dot').forEach((d,i)=>{
+    d.classList.toggle('active', i===raceIdx);
+    d.classList.toggle('past', i<raceIdx);
+  });
+  document.getElementById('racePrevBtn').disabled = raceIdx===0;
+  document.getElementById('raceNextBtn').disabled = raceIdx===raceState.frames.length-1;
+}
+
+function raceGoTo(idx){
+  if(!raceState) return;
+  raceIdx = Math.max(0, Math.min(raceState.frames.length-1, idx));
+  renderRaceFrame();
+}
+function raceStep(){
+  if(raceIdx >= raceState.frames.length-1){ raceStop(); return; }
+  raceGoTo(raceIdx+1);
+}
+function racePlay(){
+  if(racePlaying || !raceState) return;
+  if(raceIdx >= raceState.frames.length-1) raceIdx = -1; // restart from the top if already at the end
+  racePlaying = true;
+  const btn = document.getElementById('racePlayBtn');
+  btn.textContent = '⏸'; btn.classList.add('playing'); btn.title = 'Pause';
+  raceStep();
+  raceTimer = setInterval(raceStep, RACE_INTERVAL_MS);
+}
+function raceStop(){
+  racePlaying = false;
+  const btn = document.getElementById('racePlayBtn');
+  if(btn){ btn.textContent = '▶'; btn.classList.remove('playing'); btn.title = 'Play'; }
+  if(raceTimer){ clearInterval(raceTimer); raceTimer = null; }
+}
+
+function renderLbTrendChart(){
+  raceStop();
+  raceColorMap = {}; raceColorIdx = 0;
+  raceState = buildRaceFrames(currentBf, lbTrendStat);
+  raceIdx = 0; // races start at the beginning of the season, not the latest match
+
+  const scrubber = document.getElementById('raceScrubber');
+  scrubber.innerHTML = raceState.frames.map((f,i)=>
+    `<div class="rs-dot" data-idx="${i}" title="M${f.match} vs ${f.opp}"></div>`).join('');
+  scrubber.querySelectorAll('.rs-dot').forEach(d=>{
+    d.addEventListener('click', ()=>{ raceStop(); raceGoTo(parseInt(d.dataset.idx,10)); });
+  });
+
+  document.getElementById('raceBars').innerHTML = '';
+  renderRaceFrame();
+
+  const statLabel = {k:'Kills', a:'Assists', d:'Deaths', obj: currentBf==='Sub' ? 'Monsters' : 'Tablets'}[lbTrendStat];
+  const noteEl = document.getElementById('lbTrendNote');
+  if(noteEl) noteEl.textContent =
+    `Running season total in ${statLabel}, top ${RACE_TOP_N} as of each match. Tap the strip below to jump to a match, or \u23ee/\u23ed to step.`;
+
+  racePlay(); // every fresh tab (stat switch, battlefield switch, or opening By Trend) starts playing right away
+}
+
 
 // ---------- KPI info panel (built from the same KPI object used for pass/fail) ----------
 function renderKpiInfoPanel(){
@@ -1122,9 +1382,37 @@ function setupListeners(){
     renderLeaderboard();
     renderPlayerList();
     if(document.getElementById('kpiInfoPanel').style.display !== 'none') renderKpiInfoPanel();
-    if(document.getElementById('akInfoPanel').style.display !== 'none') renderAkInfoPanel();
+    // akInfoPanel lives inside the same chart-panel as akChart's canvas, so if Chart.js failed to
+    // load, renderTrendCharts()'s fallback already replaced that whole panel — guard the lookup
+    const akPanel = document.getElementById('akInfoPanel');
+    if(akPanel && akPanel.style.display !== 'none') renderAkInfoPanel();
   };
   setupToggle('trendBfToggle', onBfChange);
+
+  document.getElementById('lbViewToggle').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.getElementById('lbViewToggle').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      lbView = btn.dataset.view;
+      document.getElementById('lbGrid').style.display = lbView==='overall' ? '' : 'none';
+      document.getElementById('lbTrendView').style.display = lbView==='trend' ? '' : 'none';
+      if(lbView==='trend') renderLbTrendChart(); else raceStop();
+    });
+  });
+  document.getElementById('racePlayBtn').addEventListener('click', ()=>{
+    if(racePlaying) raceStop(); else racePlay();
+  });
+  document.getElementById('racePrevBtn').addEventListener('click', ()=>{ raceStop(); raceGoTo(raceIdx-1); });
+  document.getElementById('raceNextBtn').addEventListener('click', ()=>{ raceStop(); raceGoTo(raceIdx+1); });
+  document.getElementById('lbTrendStatToggle').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.getElementById('lbTrendStatToggle').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      lbTrendStat = btn.dataset.stat;
+      renderLbTrendChart();
+    });
+  });
+
   document.getElementById('compMatchFilter').addEventListener('change', renderComposition);
   ['matchFilter','jobFilter','sortFilter'].forEach(id=>{
     document.getElementById(id).addEventListener('change', ()=>{
