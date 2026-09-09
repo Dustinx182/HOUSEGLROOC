@@ -994,28 +994,33 @@ function buildLeaderboard(bf){
   // is a real record. Kills/Assist/Tablet/Monster are TOTALS, which already need volume to rank
   // high, so this floor rarely changes those; it exists mainly to keep Fewest Deaths honest.
   const RECENT_N = 2; // Fewest Deaths looks at recent form, not the whole season
+  // The calendar's actual most-recent RECENT_N matches on this battlefield. A player must have
+  // played in EVERY one of these specific matches to qualify — skipping even one of them means
+  // their "recent form" isn't really comparable to someone who showed up for both, so they're
+  // excluded from this panel entirely rather than being judged on an older substitute match.
+  const calendarMatches = [...new Set(rows.map(p=>p.match))].sort((a,b)=>a-b);
+  const recentCalendar = calendarMatches.slice(-RECENT_N);
   const entries = Object.values(byPlayer)
     .filter(ps=>ps.length>=MIN_LB_MATCHES)
     .map(ps=>{
       ps.sort((a,b)=>a.match-b.match);
       const latest = ps[ps.length-1]; // most recent job/role, in case it changed match to match
       const sum = key => ps.reduce((s,p)=>s+(p[key]||0), 0);
-      // last RECENT_N appearances this player actually had, not last RECENT_N matches on the
-      // calendar — someone who sat out the most recent match is judged on the games they played
-      const recent = ps.slice(-RECENT_N);
-      const dRecent = recent.reduce((s,p)=>s+(p.d||0), 0);
+      const byMatch = {}; ps.forEach(p=>{ byMatch[p.match] = p; });
+      const recentEligible = recentCalendar.every(m => byMatch[m]);
+      const dRecent = recentEligible ? recentCalendar.reduce((s,m)=>s+(byMatch[m].d||0), 0) : null;
       return {name:latest.name, job:latest.job, n:ps.length,
               k:sum('k'), a:sum('a'), d:sum('d'), obj:sum(objKey),
-              dRecent, recentN: recent.length,
-              recentMatches: recent.map(p=>p.match)};
+              dRecent, recentN: RECENT_N,
+              recentMatches: recentCalendar, recentEligible};
     });
   // Tie-break: when the primary stat is equal, rank by Assist total instead — a real signal of
   // overall contribution rather than an arbitrary alphabetical cut. The Most Assists panel can't
   // tie-break on itself, so it falls back to Kills; alphabetical is the last-resort tie-break only
   // for the (very rare) case where even that secondary stat is also identical.
-  const topN = (key, dir) => {
+  const topN = (key, dir, pool=entries) => {
     const secondary = key==='a' ? 'k' : 'a';
-    return [...entries]
+    return [...pool]
       .sort((x,y)=> {
         const primary = dir==='desc' ? y[key]-x[key] : x[key]-y[key];
         if(primary!==0) return primary;
@@ -1028,7 +1033,7 @@ function buildLeaderboard(bf){
   return {
     kills:  topN('k','desc'),
     assist: topN('a','desc'),
-    death:  topN('dRecent','asc'),
+    death:  topN('dRecent','asc', entries.filter(e=>e.recentEligible)),
     obj:    topN('obj','desc'),
     objLabel: bf==='Sub' ? 'Most Monsters' : 'Most Tablets',
   };
