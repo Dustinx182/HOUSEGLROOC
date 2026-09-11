@@ -1692,7 +1692,7 @@ try{
   (relative path) or a full URL you have rights to use. Leave src empty to keep the button disabled.
 -->
 <audio id="bgMusic" loop preload="auto">
-  <source src="021%20Ragnarok%20Origin%20Battleground.mp3" type="audio/mpeg">
+  <source src="battleground.mp3" type="audio/mpeg">
 </audio>
 
 <script>
@@ -1701,12 +1701,30 @@ try{
   const btn = document.getElementById('musicToggle');
   const source = audio.querySelector('source');
   const hasSource = !!(source && source.getAttribute('src'));
+  const LOG = (...args)=> console.log('[bgMusic]', ...args);
 
   if(!hasSource){
     btn.classList.add('no-source');
     btn.title = 'Add an audio file to enable background music';
+    LOG('no <source src> set — button disabled');
     return;
   }
+  LOG('source configured as', source.getAttribute('src'));
+
+  // Surfaces load failures (wrong filename/path, unsupported format, corrupted file, etc.) directly
+  // in the console and on the button itself, since that's otherwise invisible — play() rejecting
+  // looks identical whether it's an autoplay block or the file simply failing to load.
+  audio.addEventListener('error', ()=>{
+    const err = audio.error;
+    const codes = {1:'MEDIA_ERR_ABORTED',2:'MEDIA_ERR_NETWORK',3:'MEDIA_ERR_DECODE',4:'MEDIA_ERR_SRC_NOT_SUPPORTED'};
+    LOG('LOAD FAILED —', err ? (codes[err.code]||('code '+err.code)) : 'unknown error',
+        '— check the filename/path matches exactly (case-sensitive) and the file actually uploaded correctly.');
+    btn.classList.add('no-source');
+    btn.title = 'Audio file failed to load — see console for details';
+  });
+  audio.addEventListener('canplaythrough', ()=> LOG('file loaded fine, ready to play'));
+  audio.addEventListener('playing', ()=> LOG('now playing, muted =', audio.muted));
+  audio.addEventListener('pause', ()=> LOG('paused'));
 
   // "Autoplay" here means: the browser is asked to start playback immediately. Browsers block
   // autoplay WITH sound unless the user already interacted with the page or site — there's no way
@@ -1726,12 +1744,14 @@ try{
   function unmuteOnFirstGesture(){
     if(awaitingGesture) return;
     awaitingGesture = true;
+    LOG('playing muted, waiting for a click/tap/keypress anywhere to unmute');
     const unmute = ()=>{
       document.removeEventListener('pointerdown', unmute);
       document.removeEventListener('keydown', unmute);
       awaitingGesture = false;
-      if(!enabled) return; // user turned music off before ever interacting — respect that
+      if(!enabled){ LOG('gesture received but music was turned off — leaving muted'); return; }
       audio.muted = false;
+      LOG('gesture received — unmuted');
       setBtnState();
     };
     document.addEventListener('pointerdown', unmute, {once:true});
@@ -1739,15 +1759,19 @@ try{
   }
 
   function tryAutoplay(){
+    LOG('attempting unmuted autoplay…');
     audio.play().then(()=>{
+      LOG('unmuted autoplay succeeded');
       setBtnState();
-    }).catch(()=>{
+    }).catch((e)=>{
+      LOG('unmuted autoplay blocked (', e.name, ') — retrying muted…');
       audio.muted = true;
       audio.play().then(()=>{
+        LOG('muted autoplay succeeded');
         setBtnState();
         unmuteOnFirstGesture();
-      }).catch(()=>{
-        // even muted autoplay got blocked (rare) — the header button still works as a normal toggle
+      }).catch((e2)=>{
+        LOG('even muted autoplay was blocked (', e2.name, ') — the header button will still work as a normal toggle');
         setBtnState();
       });
     });
@@ -1757,7 +1781,7 @@ try{
     enabled = !enabled;
     if(enabled){
       audio.muted = false;
-      if(audio.paused) audio.play().catch(()=>{});
+      if(audio.paused) audio.play().then(()=>LOG('started via button')).catch((e)=>LOG('button play() rejected:', e.name));
     } else {
       audio.pause();
     }
