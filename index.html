@@ -1777,7 +1777,10 @@ try{
     });
   }
 
+  let busy = false; // ignores extra clicks while a play()/pause() request is still in flight
   btn.addEventListener('click', ()=>{
+    if(busy) return;
+    busy = true;
     // Decide the action from the audio element's ACTUAL state, not the separate `enabled` flag —
     // that flag defaults to true assuming autoplay is in progress, but when autoplay is fully
     // blocked (as it was here), audio.paused is really true while enabled still said true too.
@@ -1785,11 +1788,15 @@ try{
     if(audio.paused){
       enabled = true;
       audio.muted = false;
-      audio.play().then(()=>LOG('started via button')).catch((e)=>LOG('button play() rejected:', e.name));
+      audio.play()
+        .then(()=> LOG('started via button'))
+        .catch((e)=> LOG('button play() rejected:', e.name))
+        .finally(()=>{ busy = false; });
     } else {
       enabled = false;
       audio.pause();
       LOG('paused via button');
+      busy = false;
     }
     setBtnState();
   });
