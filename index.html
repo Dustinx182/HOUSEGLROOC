@@ -136,7 +136,7 @@
   @media (min-width:860px){ .global-toggle-bar .toggle-group{max-width:1180px;} }
 
   .player-group-head{
-    display:flex; align-items:center; gap:8px; margin:14px 4px 6px;
+    display:flex; align-items:center; gap:8px; margin:14px 4px 6px; flex-wrap:wrap;
   }
   .player-group-head .pg-name{font-weight:700; font-size:13.5px; flex:0 1 auto; min-width:0;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
@@ -298,7 +298,8 @@
 
   /* filter bar */
   .filter-bar{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
-  .filter-bar #sortFilter{flex:1.4;}
+  .filter-bar #sortByFilter{flex:1.4;}
+  .filter-bar #sortOrderFilter{flex:0.9;}
   select, input[type="search"]{
     background:var(--panel-2); color:var(--text); border:1px solid var(--border);
     border-radius:8px; padding:7px 10px; font-size:12.5px; flex:1; min-width:90px;
@@ -473,11 +474,8 @@
       <div class="filter-bar">
         <select id="matchFilter"></select>
         <select id="jobFilter"></select>
-        <select id="sortFilter">
-          <option value="fail">Most red first</option>
-          <option value="pass">Most green first</option>
-          <option value="name">Name A–Z</option>
-        </select>
+        <select id="sortByFilter"></select>
+        <select id="sortOrderFilter"></select>
       </div>
       <input type="search" id="searchBox" placeholder="Search player name…" style="width:100%; margin-bottom:10px;">
       <div class="kpi-summary">
@@ -539,6 +537,7 @@ const KPI = {
   }
 };
 const METRIC_LABEL = {Sub:'Mon', Main:'Tab'};
+const OBJ_LABEL_FULL = {Sub:'Monsters', Main:'Tablets'};
 
 // ---------- HOUSE's own baseline (median of HOUSE's own per-match medians, all matches, win+loss) ----------
 // Pulled from HOUSE_KPI_Derivation.xlsx Step 6c — same rigor as the KPI table above, kept in sync by hand
@@ -869,6 +868,50 @@ function populateFilters(){
   const jobSel = document.getElementById('jobFilter');
   jobSel.innerHTML = '<option value="all">All jobs</option>' +
     jobs.map(j=>`<option value="${j}">${j}</option>`).join('');
+
+  populateSortFilter();
+}
+
+// Rebuilds the two sort dropdowns — called on load and again whenever the Sub/Main battlefield
+// toggle flips, since the objective option's label ("Monsters" vs "Tablets") depends on it.
+// Keeps whatever the user had selected (the value set is identical either way, only text changes).
+// Default is By Reds / Descending — i.e. worst-first, same as the old "Most red first".
+function populateSortFilter(){
+  const bySel = document.getElementById('sortByFilter');
+  const orderSel = document.getElementById('sortOrderFilter');
+  const prevBy = bySel.value;
+  const prevOrder = orderSel.value;
+  const objLabel = OBJ_LABEL_FULL[currentBf];
+  bySel.innerHTML = `
+    <option value="reds">By Reds</option>
+    <option value="greens">By Green</option>
+    <option value="name">By Name</option>
+    <option value="kills">By Kills</option>
+    <option value="assists">By Assists</option>
+    <option value="deaths">By Deaths</option>
+    <option value="obj">By ${objLabel}</option>
+  `;
+  bySel.value = prevBy || 'reds';
+  orderSel.innerHTML = `
+    <option value="desc">Descending</option>
+    <option value="asc">Ascending</option>
+  `;
+  orderSel.value = prevOrder || 'desc';
+}
+
+// Single comparator shared by both the flat (one match) and grouped (all matches) sort paths —
+// each just supplies its own metricsFn to pull the right numbers off its own shape of row.
+// "Descending" always means highest-value-first (worst-first for Reds/Deaths, best-first for
+// everything else) and "Ascending" flips that — one consistent rule instead of a per-metric one.
+const SORT_METRIC_KEY = {reds:'fails', greens:'green', kills:'k', assists:'a', deaths:'d', obj:'obj'};
+function sortByKey(list, sortBy, sortOrder, metricsFn){
+  const flip = sortOrder === 'asc' ? -1 : 1;
+  list.sort((a,b)=>{
+    const ma = metricsFn(a), mb = metricsFn(b);
+    if(sortBy === 'name') return flip * mb.name.localeCompare(ma.name);
+    const key = SORT_METRIC_KEY[sortBy] || 'fails';
+    return flip * (mb[key] - ma[key]);
+  });
 }
 
 function renderMetricChips(ev){
@@ -897,7 +940,7 @@ function renderSingleCard(p, ev, showMatchTag){
   return `<div class="player-card">
     <div class="pc-top">
       <span class="pc-name">${primaryLabel}</span>
-      <span class="job-badge ${p.role}">${p.job}</span>
+      <span class="job-badge ${p.role}">${p.kpiJob}</span>
       ${badge}
     </div>
     <div class="metric-row">${renderMetricChips(ev)}</div>
@@ -907,7 +950,8 @@ function renderSingleCard(p, ev, showMatchTag){
 function renderPlayerList(){
   const matchVal = document.getElementById('matchFilter').value;
   const jobVal = document.getElementById('jobFilter').value;
-  const sortVal = document.getElementById('sortFilter').value;
+  const sortBy = document.getElementById('sortByFilter').value;
+  const sortOrder = document.getElementById('sortOrderFilter').value;
   const search = document.getElementById('searchBox').value.trim().toLowerCase();
 
   let rows = DASH.players.filter(p=>p.bf===currentBf);
@@ -929,9 +973,10 @@ function renderPlayerList(){
 
   // ---- specific match selected: flat list, one card per player, unchanged behavior ----
   if(matchVal !== 'all'){
-    if(sortVal==='fail') evaluated.sort((a,b)=> b.ev.fails - a.ev.fails);
-    else if(sortVal==='pass') evaluated.sort((a,b)=> a.ev.fails - b.ev.fails);
-    else evaluated.sort((a,b)=> a.p.name.localeCompare(b.p.name));
+    sortByKey(evaluated, sortBy, sortOrder, e=>({
+      fails: e.ev.fails, green: e.ev.applicable - e.ev.fails, name: e.p.name, k: e.p.k, a: e.p.a, d: e.p.d,
+      obj: currentBf==='Sub' ? (e.p.mon||0) : (e.p.tab||0)
+    }));
 
     document.getElementById('shownCount').textContent = evaluated.length;
     document.getElementById('passAllCount').textContent = evaluated.filter(e=>e.ev.fails===0 && e.ev.applicable>0).length;
@@ -952,14 +997,37 @@ function renderPlayerList(){
     const applicableEntries = entries.filter(e=>e.ev.applicable>0);
     const passedCount = applicableEntries.filter(e=>e.ev.fails===0).length;
     const totalFails = entries.reduce((s,e)=>s+e.ev.fails,0);
-    const latestJob = entries[entries.length-1].p.job;
+    const totalApplicable = entries.reduce((s,e)=>s+e.ev.applicable,0);
+    const latestJob = entries[entries.length-1].p.kpiJob;
     const latestRole = entries[entries.length-1].p.role;
-    return {name, entries, applicableEntries, passedCount, totalFails, latestJob, latestRole};
+    // Per-match averages, not totals — a player with 8 matches shouldn't out-rank a player with 4
+    // just for having played more. This is what "most Kills first" etc. sort against below.
+    const n = entries.length;
+    const avgK = entries.reduce((s,e)=>s+e.p.k,0) / n;
+    const avgA = entries.reduce((s,e)=>s+e.p.a,0) / n;
+    const avgD = entries.reduce((s,e)=>s+e.p.d,0) / n;
+    const avgObj = entries.reduce((s,e)=> s + (currentBf==='Sub' ? (e.p.mon||0) : (e.p.tab||0)), 0) / n;
+    // Red = failed checks per match, Green = passed checks per match — both out of however many
+    // checks actually applied to this job (Priests only have 2 applicable checks, Snipers have 4).
+    const avgRed = totalFails / n;
+    const avgGreen = (totalApplicable - totalFails) / n;
+    return {name, entries, applicableEntries, passedCount, totalFails, latestJob, latestRole, avgK, avgA, avgD, avgObj, avgRed, avgGreen};
   });
 
-  if(sortVal==='fail') groupList.sort((a,b)=> b.totalFails - a.totalFails);
-  else if(sortVal==='pass') groupList.sort((a,b)=> a.totalFails - b.totalFails);
-  else groupList.sort((a,b)=> a.name.localeCompare(b.name));
+  sortByKey(groupList, sortBy, sortOrder, g=>({
+    fails: g.totalFails, green: g.avgGreen, name: g.name, k: g.avgK, a: g.avgA, d: g.avgD, obj: g.avgObj
+  }));
+
+  // When sorting by a raw stat (not Name), show the per-match average that drove the ranking
+  // right in the group header — otherwise "By Kills" reorders the list with no visible number
+  // to explain why any given player landed where they did. Reds gets both halves (red AND green
+  // per match) since one number alone doesn't say how many checks applied to that job.
+  const statSortLabel = {
+    kills:'Kills', assists:'Assists', deaths:'Deaths', obj:OBJ_LABEL_FULL[currentBf]
+  }[sortBy];
+  const statSortValue = {
+    kills:'avgK', assists:'avgA', deaths:'avgD', obj:'avgObj'
+  }[sortBy];
 
   document.getElementById('shownCount').textContent = groupList.length + ' players';
   document.getElementById('passAllCount').textContent = groupList.filter(g=> g.applicableEntries.length>0 && g.passedCount===g.applicableEntries.length).length;
@@ -969,6 +1037,9 @@ function renderPlayerList(){
     const rateClass = g.applicableEntries.length===0 ? '' : (g.passedCount===g.applicableEntries.length ? 'good' : (g.passedCount===0 ? 'bad' : ''));
     const rateLabel = g.applicableEntries.length===0 ? '' :
       `<span class="pg-rate ${rateClass}">${g.passedCount}/${g.applicableEntries.length} passed</span>`;
+    const avgLabel = (sortBy === 'reds' || sortBy === 'greens')
+      ? `<span class="pg-rate bad">${Math.round(g.avgRed*10)/10} avg Red</span><span class="pg-rate good">${Math.round(g.avgGreen*10)/10} avg Green</span>`
+      : (statSortLabel ? `<span class="pg-rate">${Math.round(g[statSortValue]*10)/10} avg ${statSortLabel}</span>` : '');
     const cardsHtml = g.entries.map(({p,ev})=> renderSingleCard(p, ev, true)).join('');
     return `<div class="player-group">
       <div class="player-group-head">
@@ -976,6 +1047,7 @@ function renderPlayerList(){
         <span class="job-badge ${g.latestRole}">${g.latestJob}</span>
         <span class="pg-count">${n} match${n>1?'es':''} played</span>
         ${rateLabel}
+        ${avgLabel}
       </div>
       ${cardsHtml}
     </div>`;
@@ -1430,6 +1502,7 @@ function setupListeners(){
   // click; this handler just updates the shared state and re-renders everything downstream of it.
   const onBfChange = (bf)=>{
     currentBf = bf;
+    populateSortFilter();
     renderTrendCharts();
     renderComposition();
     renderLeaderboard();
@@ -1467,7 +1540,7 @@ function setupListeners(){
   });
 
   document.getElementById('compMatchFilter').addEventListener('change', renderComposition);
-  ['matchFilter','jobFilter','sortFilter'].forEach(id=>{
+  ['matchFilter','jobFilter','sortByFilter','sortOrderFilter'].forEach(id=>{
     document.getElementById(id).addEventListener('change', ()=>{
       renderPlayerList();
       // the info panel's third table is specific to the selected match, so it has to follow the filter
