@@ -1749,12 +1749,16 @@ try{
   let awaitingGesture = false;
   const icon = document.getElementById('musicIcon');
 
+  // The switch shows `enabled` (what the user wants), not audio.paused (what the browser is
+  // literally doing right now). Browsers block real autoplay, so audio.paused stays true for a
+  // moment even though the intent is "on" — tying the visual to .paused made the switch flicker
+  // to "off" by default, which is backwards from what it's meant to communicate.
   function setBtnState(){
-    const on = enabled && !audio.paused;
-    btn.classList.toggle('on', on);
-    btn.setAttribute('aria-checked', String(on));
-    icon.classList.toggle('on', on);
+    btn.classList.toggle('on', enabled);
+    btn.setAttribute('aria-checked', String(enabled));
+    icon.classList.toggle('on', enabled);
   }
+  setBtnState(); // paint the correct default immediately, before any autoplay attempt resolves
 
   function unmuteOnFirstGesture(){
     if(awaitingGesture) return;
