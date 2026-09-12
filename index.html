@@ -38,14 +38,15 @@
     position:sticky; top:0; z-index:50;
     background:rgba(15,17,21,0.92); backdrop-filter:blur(8px);
     border-bottom:1px solid var(--border);
-    padding:12px 16px;
-    display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:10px;
+    padding:10px 16px;
+    display:grid; grid-template-columns:1fr auto; grid-template-areas:"left right" "center center";
+    align-items:center; column-gap:10px; row-gap:8px;
   }
-  .header-left{display:flex; align-items:center; gap:10px; min-width:0;}
+  .header-left{grid-area:left; display:flex; align-items:center; gap:10px; min-width:0;}
   header.top .titles{flex:1; min-width:0;}
   header.top h1{font-size:15px; margin:0; letter-spacing:0.02em; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
   header.top .sub{font-size:11px; color:var(--text-dim); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .header-right{display:flex; align-items:center; gap:8px; justify-self:end; flex-shrink:0;}
+  .header-right{grid-area:right; display:flex; align-items:center; gap:8px; justify-self:end; flex-shrink:0;}
   .record-pill{
     font-size:12px; font-weight:700; padding:4px 10px; border-radius:999px;
     background:var(--panel-2); border:1px solid var(--border); white-space:nowrap;
@@ -92,7 +93,7 @@
   .kpi-info-panel .ip-purple{color:var(--support);}
 
   .event-tabs{
-    display:flex; gap:2px; flex-shrink:0; justify-self:center;
+    display:flex; gap:2px; flex-shrink:0; justify-self:center; grid-area:center;
     background:#12161d; border:1px solid rgba(255,255,255,0.07);
     border-radius:999px; padding:4px;
     box-shadow:inset 0 1px 3px rgba(0,0,0,0.5);
@@ -118,16 +119,21 @@
   .event-note{
     font-size:10.5px; color:var(--text-dim); text-align:center; margin-top:6px;
   }
-  .header-music-btn{
-    width:28px; height:28px; border-radius:50%; flex-shrink:0;
-    background:var(--panel-2); border:1px solid var(--border);
-    color:var(--gold); font-size:13px; cursor:pointer;
-    display:flex; align-items:center; justify-content:center;
-    transition:border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+  .music-control{display:flex; align-items:center; gap:6px; flex-shrink:0;}
+  .music-icon{font-size:13px; color:var(--text-dim); transition:color 0.25s ease;}
+  .music-icon.on{color:var(--gold);}
+  .music-switch{
+    width:38px; height:21px; border-radius:999px; flex-shrink:0; padding:0;
+    background:var(--panel-2); border:1px solid var(--border); cursor:pointer; position:relative;
+    transition:background 0.25s ease, border-color 0.25s ease;
   }
-  .header-music-btn:active{transform:scale(0.9);}
-  .header-music-btn.playing{border-color:var(--gold); box-shadow:0 0 8px rgba(212,169,76,0.45);}
-  .header-music-btn.no-source{opacity:0.4; cursor:not-allowed;}
+  .music-switch .knob{
+    position:absolute; top:2px; left:2px; width:15px; height:15px; border-radius:50%;
+    background:var(--text-dim); transition:transform 0.25s ease, background 0.25s ease;
+  }
+  .music-switch.on{background:linear-gradient(135deg,#7ab8ea,#4a86c4); border-color:transparent;}
+  .music-switch.on .knob{transform:translateX(17px); background:#0a1826;}
+  .music-switch.no-source{opacity:0.4; cursor:not-allowed;}
 
   .no-data-card{
     text-align:center; color:var(--text-dim); font-size:12.5px; padding:40px 20px;
@@ -383,6 +389,7 @@
   /* ---------- wide-screen layout (desktop / tablet) ---------- */
   @media (min-width: 860px){
     main{max-width:1180px;}
+    header.top{grid-template-columns:1fr auto 1fr; grid-template-areas:"left center right"; row-gap:0;}
     .chart-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start;}
     .chart-panel canvas{max-height:260px;}
     .lb-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
@@ -406,7 +413,12 @@
   </div>
   <div class="header-right">
     <div class="record-pill" id="recordPill">–</div>
-    <button id="musicToggle" class="header-music-btn" title="Toggle background music">🔊</button>
+    <div class="music-control">
+      <span class="music-icon" id="musicIcon">🎵</span>
+      <button id="musicToggle" class="music-switch" role="switch" aria-checked="false" title="Toggle background music">
+        <span class="knob"></span>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -1691,7 +1703,7 @@ try{
   Drop the file next to this HTML file and update the src below, e.g. src="battleground-theme.mp3"
   (relative path) or a full URL you have rights to use. Leave src empty to keep the button disabled.
 -->
-<audio id="bgMusic" loop preload="auto">
+<audio id="bgMusic" loop preload="auto" controls style="position:fixed; bottom:70px; right:18px; z-index:60; max-width:260px;">
   <source src="battleground.mp3" type="audio/mpeg">
 </audio>
 
@@ -1733,12 +1745,15 @@ try{
   // muted right away, then unmute the instant the user does anything at all on the page — a click,
   // a tap, a keypress. In practice that's within a second of the page loading for most people,
   // since this dashboard is full of things to click.
-  let enabled = true; // the user's intent — defaults to on; the header button flips this
+  let enabled = true; // the user's intent — defaults to on; the header switch flips this
   let awaitingGesture = false;
+  const icon = document.getElementById('musicIcon');
 
   function setBtnState(){
-    btn.textContent = enabled && !audio.paused ? '🔊' : '🔈';
-    btn.classList.toggle('playing', enabled && !audio.paused);
+    const on = enabled && !audio.paused;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-checked', String(on));
+    icon.classList.toggle('on', on);
   }
 
   function unmuteOnFirstGesture(){
