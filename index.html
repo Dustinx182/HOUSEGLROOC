@@ -1760,21 +1760,31 @@ try{
   }
   setBtnState(); // paint the correct default immediately, before any autoplay attempt resolves
 
-  function unmuteOnFirstGesture(){
+  // Covers both fallback outcomes: if muted autoplay succeeded, this just unmutes on first
+  // interaction; if even muted autoplay was blocked, this starts playback fresh instead — either
+  // way, the very first click/tap/keypress ANYWHERE on the page (not just the switch) is what
+  // gets sound going, since that's a genuine user gesture browsers will always honor.
+  function armFirstGestureStart(){
     if(awaitingGesture) return;
     awaitingGesture = true;
-    LOG('playing muted, waiting for a click/tap/keypress anywhere to unmute');
-    const unmute = ()=>{
-      document.removeEventListener('pointerdown', unmute);
-      document.removeEventListener('keydown', unmute);
+    LOG('waiting for a click/tap/keypress anywhere on the page to start/unmute audio');
+    const start = ()=>{
+      document.removeEventListener('pointerdown', start);
+      document.removeEventListener('keydown', start);
       awaitingGesture = false;
-      if(!enabled){ LOG('gesture received but music was turned off — leaving muted'); return; }
-      audio.muted = false;
-      LOG('gesture received — unmuted');
+      if(!enabled){ LOG('gesture received but music was turned off — leaving as is'); return; }
+      if(audio.paused){
+        audio.muted = false;
+        audio.play().then(()=> LOG('started on first page interaction'))
+                     .catch((e)=> LOG('first-interaction play() rejected:', e.name));
+      } else if(audio.muted){
+        audio.muted = false;
+        LOG('gesture received — unmuted');
+      }
       setBtnState();
     };
-    document.addEventListener('pointerdown', unmute, {once:true});
-    document.addEventListener('keydown', unmute, {once:true});
+    document.addEventListener('pointerdown', start, {once:true});
+    document.addEventListener('keydown', start, {once:true});
   }
 
   function tryAutoplay(){
@@ -1788,10 +1798,11 @@ try{
       audio.play().then(()=>{
         LOG('muted autoplay succeeded');
         setBtnState();
-        unmuteOnFirstGesture();
+        armFirstGestureStart();
       }).catch((e2)=>{
-        LOG('even muted autoplay was blocked (', e2.name, ') — the header button will still work as a normal toggle');
+        LOG('even muted autoplay was blocked (', e2.name, ') — will start on first page interaction instead');
         setBtnState();
+        armFirstGestureStart();
       });
     });
   }
