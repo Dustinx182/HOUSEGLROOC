@@ -85,6 +85,8 @@
   section{margin-bottom:22px;}
   .section-head{display:flex; align-items:baseline; justify-content:space-between; margin:0 4px 12px; gap:8px; flex-wrap:wrap;}
   .section-head h2{font-size:16px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim); margin:0; font-weight:800;}
+  .section-head .section-hint{font-size:11px; text-transform:none; letter-spacing:normal; font-weight:500;
+    color:var(--text-dim); opacity:0.75; margin-left:6px;}
   .section-head.sh-record h2{color:var(--gold);}
   .section-head.sh-comp h2{color:#3f9c92;}
   .section-head.sh-trends h2{color:var(--dps);}
@@ -367,22 +369,46 @@
 
   /* team composition */
   .comp-row{margin-bottom:12px; border-radius:8px; padding:6px 8px; margin-left:-8px; margin-right:-8px;
-    border-left:4px solid transparent;}
+    border-left:4px solid transparent; cursor:pointer; -webkit-tap-highlight-color:transparent;}
+  .comp-row:active{background:var(--panel-2);}
   .comp-row.opp-lead{background:rgba(224,92,92,0.18); border-left-color:var(--loss); padding-left:12px;}
+  .comp-row.opp-lead:active{background:rgba(224,92,92,0.28);}
   .comp-row.opp-lead .comp-head .job{color:var(--loss); font-weight:800;}
   .comp-row.opp-lead .comp-head .counts b.opp-num{color:var(--loss);}
   .comp-head{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:4px; font-size:11.5px;}
   .comp-head .job{font-weight:700; color:var(--text);}
+  .comp-head .job .chev{display:inline-block; margin-left:6px; font-size:9px; color:var(--text-dim);
+    transition:transform 0.2s ease;}
+  .comp-row.expanded .comp-head .job .chev{transform:rotate(90deg);}
   .comp-head .counts{color:var(--text-dim); font-size:10.5px;}
   .comp-head .counts b{color:var(--text);}
-  .comp-bar{display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--panel-2);}
+  /* Extra vertical padding around the bar (not on the row) widens the tap target on mobile
+     without visually growing the 14px bar itself. */
+  .comp-bar-wrap{padding:6px 0; margin:-6px 0;}
+  .comp-bar{display:flex; height:14px; border-radius:7px; overflow:hidden; background:var(--panel-2);
+    transition:transform 0.12s ease, filter 0.12s ease;}
   .comp-bar .house{background:var(--gold); min-width:0;}
   .comp-bar .opp{background:var(--loss); min-width:0;}
   .comp-bar .empty-both{flex:1; display:flex; align-items:center; justify-content:center;
     font-size:10.5px; color:var(--text-dim);}
+  /* Visible feedback specifically on the bar when the row is pressed, so tapping the bar itself
+     is unmistakably registering — not just a background change elsewhere in the row. */
+  .comp-row:active .comp-bar{transform:scaleY(1.25); filter:brightness(1.12);}
   .comp-legend{display:flex; gap:14px; font-size:10.5px; color:var(--text-dim); margin-bottom:14px;}
   .comp-legend span{display:flex; align-items:center; gap:5px;}
   .comp-legend .dot{width:9px; height:9px; border-radius:3px; display:inline-block;}
+
+  .comp-detail{display:none; grid-template-columns:1fr 1fr; gap:0 14px; margin-top:10px; padding-top:10px;
+    border-top:1px dashed var(--border); cursor:default;}
+  .comp-detail.open{display:grid;}
+  .comp-detail-col h4{font-size:9.5px; font-weight:800; text-transform:uppercase; letter-spacing:0.04em;
+    color:var(--text-dim); margin:0 0 5px;}
+  .comp-detail-col.house-col h4{color:var(--gold);}
+  .comp-detail-col.opp-col h4{color:var(--loss);}
+  .comp-player-row{display:flex; justify-content:space-between; gap:6px; font-size:10.5px; padding:2.5px 0;}
+  .comp-player-row .cpname{overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--text); min-width:0;}
+  .comp-player-row .cpkda{color:var(--text-dim); white-space:nowrap; flex:0 0 auto;}
+  .comp-detail-empty{font-size:10.5px; color:var(--text-dim); font-style:italic;}
   .comp-legend .dot.house{background:var(--gold);}
   .comp-legend .dot.opp{background:var(--loss);}
 
@@ -534,7 +560,7 @@
   </section>
 
   <section id="sec-comp" style="scroll-margin-top:130px;">
-    <div class="section-head sh-comp"><h2>Team Composition</h2></div>
+    <div class="section-head sh-comp"><h2>Team Composition<span class="section-hint">(click a job or bar for details)</span></h2></div>
     <div style="height:10px;"></div>
     <select id="compMatchFilter" style="width:100%; margin-bottom:12px;"></select>
     <div id="compGrid"></div>
@@ -1382,6 +1408,22 @@ function buildComposition(bf, matchNo){
   return { house: countBy(DASH.players), opp: countBy(DASH.opponents || []) };
 }
 
+// Players for a single job/match/side, best score first — feeds the click-to-expand detail
+// panel under each Team Composition row. Same "active" filter as the counts above, so the
+// roster shown always matches the number printed in the row header.
+function jobDetailPlayers(arr, job, bf, matchNo){
+  const active = p => (p.k+p.a+p.d+(p.mon||0)+(p.tab||0))>0;
+  return arr.filter(p=>p.bf===bf && p.match===matchNo && p.job===job && active(p))
+    .sort((a,b)=>b.score-a.score);
+}
+
+function renderCompDetailCol(list, colClass, label){
+  const rows = list.map(p=>
+    `<div class="comp-player-row"><span class="cpname">${p.name}</span><span class="cpkda">${p.k}/${p.a}/${p.d}</span></div>`
+  ).join('');
+  return `<div class="comp-detail-col ${colClass}"><h4>${label}</h4>${rows || '<div class="comp-detail-empty">None</div>'}</div>`;
+}
+
 function renderComposition(){
   const sel = document.getElementById('compMatchFilter');
   if(sel.options.length===0){
@@ -1400,17 +1442,38 @@ function renderComposition(){
     const oppLeads = o > h; // the actual flag driving the highlight — everything else is just styling
     const barInner = `<div class="house" style="flex:${h}"></div><div class="opp" style="flex:${o}"></div>`;
     const jobColorStyle = (!oppLeads && JOB_META[job]) ? ` style="color:${JOB_META[job].color};"` : '';
-    return `<div class="comp-row${oppLeads ? ' opp-lead' : ''}">
+    const detail = `<div class="comp-detail" data-job="${job}">
+      ${renderCompDetailCol(jobDetailPlayers(DASH.players, job, currentBf, matchNo), 'house-col', 'HOUSE')}
+      ${renderCompDetailCol(jobDetailPlayers(DASH.opponents || [], job, currentBf, matchNo), 'opp-col', 'Opponent')}
+    </div>`;
+    return `<div class="comp-row${oppLeads ? ' opp-lead' : ''}" data-job="${job}">
       <div class="comp-head">
-        <span class="job"${jobColorStyle}>${JOB_META[job] ? JOB_META[job].icon+' ' : ''}${job}</span>
+        <span class="job"${jobColorStyle}>${JOB_META[job] ? JOB_META[job].icon+' ' : ''}${job}<span class="chev">▸</span></span>
         <span class="counts"><b>${h}</b> HOUSE &nbsp;·&nbsp; <b class="opp-num">${o}</b> Opponent</span>
       </div>
-      <div class="comp-bar">${barInner}</div>
+      <div class="comp-bar-wrap"><div class="comp-bar">${barInner}</div></div>
+      ${detail}
     </div>`;
   }).join('');
   document.getElementById('compGrid').innerHTML = rows
     ? `<div class="comp-legend"><span><i class="dot house"></i>HOUSE</span><span><i class="dot opp"></i>Opponent</span></div>${rows}`
     : `<div class="empty-msg">No composition data for this match yet.</div>`;
+}
+
+// Delegated once — rows are rebuilt on every filter change, so binding per-row listeners would
+// leak. Accordion behavior: opening a job closes whichever one was open before it.
+function setupCompRowToggle(){
+  document.getElementById('compGrid').addEventListener('click', (e)=>{
+    const row = e.target.closest('.comp-row');
+    if(!row) return;
+    const job = row.dataset.job;
+    const detail = row.querySelector(`.comp-detail[data-job="${CSS.escape(job)}"]`);
+    if(!detail) return;
+    const opening = !detail.classList.contains('open');
+    document.querySelectorAll('#compGrid .comp-detail.open').forEach(d=>d.classList.remove('open'));
+    document.querySelectorAll('#compGrid .comp-row.expanded').forEach(r=>r.classList.remove('expanded'));
+    if(opening){ detail.classList.add('open'); row.classList.add('expanded'); }
+  });
 }
 
 // ---------- Top Performers leaderboard ----------
@@ -1859,6 +1922,15 @@ let listenersWired = false;
 function setupListeners(){
   if(listenersWired) return;
   listenersWired = true;
+
+  // iOS Safari only honors CSS :active on an element if some real touchstart listener exists
+  // in the document — otherwise taps on rows like .comp-row (whose click handler is delegated
+  // to a parent, not bound directly) never show a pressed state, even though the click itself
+  // still works. One empty listener here unlocks :active feedback for every tappable element
+  // on the page, including the Team Composition bars.
+  document.addEventListener('touchstart', function(){}, {passive:true});
+
+  setupCompRowToggle();
 
   const themeBtn = document.getElementById('themeToggle');
   const themeIcon = document.getElementById('themeIcon');
