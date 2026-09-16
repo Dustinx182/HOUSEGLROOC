@@ -25,6 +25,13 @@
     --bg-translucent:rgba(15,17,21,0.92);
     --bg-translucent-2:rgba(15,17,21,0.96);
     --grid-line:rgba(255,255,255,0.05);
+    /* Fallback values only — JS measures the real, rendered header and toggle-bar heights on
+       load/resize (they vary: header wraps to 2 rows when the event-tabs pill row is present,
+       font-size bumps at 860px+ change both, long opponent names can wrap header.top .sub,
+       etc.) and overwrites these via setProperty so position:sticky/scroll-margin-top always
+       line up with what's actually on screen instead of a guessed pixel number. */
+    --header-h:88px;
+    --toggle-bar-h:53px;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   }
   /* Bright theme: swaps --gold for blue as the primary accent (not yellow — see the many badges,
@@ -209,8 +216,11 @@
   }
   .no-data-card .nd-icon{font-size:24px; margin-bottom:8px;}
 
+  /* Third sticky layer, stacking below the header AND the global battlefield toggle — same
+     --header-h/--toggle-bar-h vars as both of those (see the ResizeObserver near
+     setupListeners), so all three always line up regardless of the header's real height. */
   .sticky-filters{
-    position:sticky; top:112px; z-index:40;
+    position:sticky; top: calc(var(--header-h) + var(--toggle-bar-h)); z-index:40;
     background:var(--bg-translucent-2); backdrop-filter:blur(6px);
     padding:8px 2px 10px; margin:0 -2px 4px;
     border-bottom:1px solid var(--border);
@@ -218,14 +228,21 @@
 
   /* global battlefield toggle — sits between the header and <main>, so position:sticky pins it
      for the ENTIRE page scroll (its containing block is unbounded), not just within one section.
-     top-offset value is measured against the real rendered header height, not guessed. */
+     top offset comes from --header-h, which JS keeps in sync with the header's real rendered
+     height (see the ResizeObserver near setupListeners) rather than a fixed guess — the header
+     itself is variable height (it wraps to a second row for the event-tabs pill). */
   .global-toggle-bar{
-    position:sticky; top:59px; z-index:45;
+    position:sticky; top:var(--header-h); z-index:45;
     background:var(--bg-translucent-2); backdrop-filter:blur(6px);
     padding:8px 12px; border-bottom:1px solid var(--border);
   }
   .global-toggle-bar .toggle-group{max-width:720px; margin:0 auto;}
   @media (min-width:860px){ .global-toggle-bar .toggle-group{max-width:1180px;} }
+
+  /* Every side-nav / match-strip jump target: land below the sticky header + toggle bar, not
+     underneath them. Same --header-h var as .global-toggle-bar above, so the two can never drift
+     out of sync with each other even as the header's real height changes. */
+  section[id]{scroll-margin-top: calc(var(--header-h) + var(--toggle-bar-h) + 6px);}
 
   .player-group-head{
     display:flex; align-items:center; gap:8px; margin:14px 4px 6px; flex-wrap:wrap;
@@ -670,19 +687,19 @@
 
 <main id="appBody">
 <div id="dataSections">
-  <section id="sec-record" style="scroll-margin-top:130px;">
+  <section id="sec-record">
     <div class="section-head sh-record"><h2>Match Record</h2></div>
     <div class="match-strip" id="matchStrip"></div>
   </section>
 
-  <section id="sec-comp" style="scroll-margin-top:130px;">
+  <section id="sec-comp">
     <div class="section-head sh-comp"><h2>Team Composition<span class="section-hint">(click a job or bar for details)</span></h2></div>
     <div style="height:10px;"></div>
     <select id="compMatchFilter" style="width:100%; margin-bottom:12px;"></select>
     <div id="compGrid"></div>
   </section>
 
-  <section id="sec-trends" style="scroll-margin-top:130px;">
+  <section id="sec-trends">
     <div class="section-head sh-trends"><h2>Team Trends</h2></div>
     <div style="height:12px;"></div>
     <div class="chart-grid">
@@ -703,7 +720,7 @@
     </div>
   </section>
 
-  <section id="sec-top" style="scroll-margin-top:130px;">
+  <section id="sec-top">
     <div class="section-head sh-top"><h2>Top Performers</h2></div>
     <div class="toggle-group" id="lbViewToggle">
       <button data-view="overall" class="active">Overall</button>
@@ -736,7 +753,7 @@
     </div>
   </section>
 
-  <section id="sec-kpi" style="scroll-margin-top:130px;">
+  <section id="sec-kpi">
     <div class="section-head sh-kpi">
       <h2>Player Stats Check</h2>
       <button id="kpiInfoToggle" class="info-link">ℹ️ How is this calculated?</button>
@@ -761,28 +778,28 @@
 </div>
 
 <div id="valeSections" style="display:none;">
-  <section id="vale-sec-record" style="scroll-margin-top:130px;">
+  <section id="vale-sec-record">
     <div class="section-head sh-record"><h2>Match Record</h2></div>
     <div class="match-strip" id="valeMatchStrip"></div>
     <div style="height:12px;"></div>
     <div class="vale-result-card" id="valeResultCard"></div>
   </section>
 
-  <section id="vale-sec-teamstats" style="scroll-margin-top:130px;">
+  <section id="vale-sec-teamstats">
     <div class="section-head sh-record"><h2>Team Stats</h2></div>
     <div class="chart-panel" id="valeTeamStatsWrap">
       <table class="vale-team-table" id="valeTeamTable"></table>
     </div>
   </section>
 
-  <section id="vale-sec-comp" style="scroll-margin-top:130px;">
+  <section id="vale-sec-comp">
     <div class="section-head sh-comp"><h2>Team Composition<span class="section-hint">(click a job or bar for details)</span></h2></div>
     <div style="height:10px;"></div>
     <select id="valeCompMatchFilter" style="width:100%; margin-bottom:12px;"></select>
     <div id="valeCompGrid"></div>
   </section>
 
-  <section id="vale-sec-trends" style="scroll-margin-top:130px;">
+  <section id="vale-sec-trends">
     <div class="section-head sh-trends"><h2>Team Trends</h2></div>
     <div style="height:12px;"></div>
     <div class="chart-grid">
@@ -797,7 +814,7 @@
     </div>
   </section>
 
-  <section id="vale-sec-top" style="scroll-margin-top:130px;">
+  <section id="vale-sec-top">
     <div class="section-head sh-top"><h2>Top Performers</h2></div>
     <div class="toggle-group" id="valeLbViewToggle">
       <button data-view="overall" class="active">Overall</button>
@@ -830,7 +847,7 @@
     </div>
   </section>
 
-  <section id="vale-sec-kpi" style="scroll-margin-top:130px;">
+  <section id="vale-sec-kpi">
     <div class="section-head sh-kpi">
       <h2>Player Stats Check</h2>
       <button id="valeKpiInfoToggle" class="info-link">ℹ️ How is this calculated?</button>
@@ -2143,9 +2160,40 @@ function setupToggle(id, onChange){
 }
 
 let listenersWired = false;
+// The header wraps to a second row whenever the event-tabs pill is present (it always is), plus
+// its height shifts with the 860px+ font bump, long opponent names wrapping .sub, and narrow
+// phones wrapping h1 — so a fixed guess for where the sticky toggle bar and section anchors
+// should sit inevitably drifts. Measure the real elements instead and keep the CSS vars in sync.
+let stickyOffsetsWired = false;
+function syncStickyOffsets(){
+  const header = document.querySelector('header.top');
+  const toggleBar = document.querySelector('.global-toggle-bar');
+  if(!header) return;
+  document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
+  if(toggleBar) document.documentElement.style.setProperty('--toggle-bar-h', toggleBar.offsetHeight + 'px');
+}
+function setupStickyOffsets(){
+  if(stickyOffsetsWired) return;
+  stickyOffsetsWired = true;
+  syncStickyOffsets();
+  // Fonts finishing their swap-in, or the very first layout pass on some mobile browsers, can
+  // land a beat after this script runs — one more measurement next frame catches those safely.
+  requestAnimationFrame(syncStickyOffsets);
+  if(typeof ResizeObserver !== 'undefined'){
+    const ro = new ResizeObserver(syncStickyOffsets);
+    const header = document.querySelector('header.top');
+    const toggleBar = document.querySelector('.global-toggle-bar');
+    if(header) ro.observe(header);
+    if(toggleBar) ro.observe(toggleBar);
+  } else {
+    window.addEventListener('resize', syncStickyOffsets);
+  }
+}
+
 function setupListeners(){
   if(listenersWired) return;
   listenersWired = true;
+  setupStickyOffsets();
 
   // iOS Safari only honors CSS :active on an element if some real touchstart listener exists
   // in the document — otherwise taps on rows like .comp-row (whose click handler is delegated
