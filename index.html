@@ -447,6 +447,36 @@
   .fail-badge.ok{background:rgba(63,184,127,0.18); color:var(--win);}
   .fail-badge.bad{background:rgba(224,92,92,0.18); color:var(--loss);}
 
+  .title-badge{
+    font-size:9px; font-weight:800; padding:3px 7px; border-radius:6px; white-space:nowrap;
+    text-transform:uppercase; letter-spacing:0.02em;
+  }
+  .title-badge.MVP{background:rgba(212,169,76,0.2); color:var(--gold);}
+  .title-badge.Assist{background:rgba(91,155,213,0.18); color:var(--dps);}
+  .title-badge.GodOfWar{background:rgba(224,92,92,0.18); color:var(--loss);}
+  .title-badge.Healing{background:rgba(63,184,127,0.18); color:var(--win);}
+  .ctf-row{display:flex; gap:6px; margin-top:6px;}
+  .ctf-chip{
+    flex:1; background:var(--panel-2); border-radius:7px; padding:5px 4px; text-align:center;
+  }
+  .ctf-chip .cv{font-size:12px; font-weight:800; color:var(--text);}
+  .ctf-chip .cl{font-size:8px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.03em; margin-top:1px;}
+  .vale-team-table{width:100%; border-collapse:collapse; font-size:11.5px;}
+  .vale-team-table th{
+    text-align:right; color:var(--text-dim); font-weight:700; padding:6px 4px;
+    border-bottom:1px solid var(--border); font-size:9.5px; text-transform:uppercase; letter-spacing:0.03em;
+  }
+  .vale-team-table th:first-child{text-align:left;}
+  .vale-team-table td{padding:7px 4px; border-bottom:1px solid rgba(255,255,255,0.04); text-align:right; color:var(--text); font-weight:700;}
+  .vale-team-table td:first-child{text-align:left; color:var(--text-dim); font-weight:600;}
+  .vale-result-card{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center;
+  }
+  .vale-result-card .vr-score{font-size:26px; font-weight:800; color:var(--text);}
+  .vale-result-card .vr-target{font-size:13px; color:var(--text-dim);}
+  .vale-result-card .vr-status{font-size:13px; font-weight:800; margin-top:4px;}
+  .vale-result-card .vr-status.Win{color:var(--win);}
+  .vale-result-card .vr-status.Loss{color:var(--loss);}
   .metric-row{display:grid; grid-template-columns:repeat(4,1fr); gap:6px;}
   .metric{
     background:var(--panel-2); border-radius:8px; padding:6px 4px; text-align:center;
@@ -483,7 +513,7 @@
     .chart-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px; align-items:start;}
     .chart-panel canvas{max-height:260px;}
     .lb-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
-    #compGrid{display:grid; grid-template-columns:1fr 1fr; gap:0 24px; align-content:start;}
+    #compGrid, #valeCompGrid{display:grid; grid-template-columns:1fr 1fr; gap:0 24px; align-content:start;}
   }
 </style>
 </head>
@@ -498,8 +528,8 @@
     </div>
   </div>
   <div class="event-tabs" id="eventToggle">
-    <button data-event="Stellar Clash" class="active">Stellar Clash</button>
-    <button data-event="Vale of Clash">Vale of Clash</button>
+    <button data-event="Stellar Clash">Stellar Clash</button>
+    <button data-event="Vale of Clash" class="active">Vale of Clash</button>
   </div>
   <div class="header-right">
     <div class="record-pill" id="recordPill">–</div>
@@ -644,6 +674,109 @@
 
 </div>
 
+<div id="valeSections" style="display:none;">
+  <section id="vale-sec-record" style="scroll-margin-top:130px;">
+    <div class="section-head sh-record"><h2>Match Record</h2></div>
+    <div class="match-strip" id="valeMatchStrip"></div>
+    <div style="height:12px;"></div>
+    <div class="vale-result-card" id="valeResultCard"></div>
+  </section>
+
+  <section id="vale-sec-teamstats" style="scroll-margin-top:130px;">
+    <div class="section-head sh-record"><h2>Team Stats</h2></div>
+    <div class="chart-panel" id="valeTeamStatsWrap">
+      <table class="vale-team-table" id="valeTeamTable"></table>
+    </div>
+  </section>
+
+  <section id="vale-sec-comp" style="scroll-margin-top:130px;">
+    <div class="section-head sh-comp"><h2>Team Composition<span class="section-hint">(click a job or bar for details)</span></h2></div>
+    <div style="height:10px;"></div>
+    <select id="valeCompMatchFilter" style="width:100%; margin-bottom:12px;"></select>
+    <div id="valeCompGrid"></div>
+  </section>
+
+  <section id="vale-sec-trends" style="scroll-margin-top:130px;">
+    <div class="section-head sh-trends"><h2>Team Trends</h2></div>
+    <div style="height:12px;"></div>
+    <div class="chart-grid">
+      <div class="chart-panel"><canvas id="valeKdChart"></canvas></div>
+      <div class="chart-panel"><canvas id="valeAChart"></canvas></div>
+      <div class="chart-panel"><canvas id="valeObjChart"></canvas></div>
+      <div class="chart-panel chart-panel-ak">
+        <button id="valeAkInfoToggle" class="chart-info-btn" title="How is this calculated?">ℹ️</button>
+        <canvas id="valeAkChart"></canvas>
+        <div id="valeAkInfoPanel" class="chart-info-panel" style="display:none;"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="vale-sec-top" style="scroll-margin-top:130px;">
+    <div class="section-head sh-top"><h2>Top Performers</h2></div>
+    <div class="toggle-group" id="valeLbViewToggle">
+      <button data-view="overall" class="active">Overall</button>
+      <button data-view="trend">By Trend</button>
+    </div>
+    <div style="height:10px;"></div>
+    <div class="lb-grid" id="valeLbGrid"></div>
+    <div id="valeLbTrendView" style="display:none;">
+      <div style="height:2px;"></div>
+      <div class="toggle-group toggle-group-sub" id="valeLbTrendStatToggle">
+        <button data-stat="k" class="active">Kills</button>
+        <button data-stat="a">Assists</button>
+        <button data-stat="d">Deaths</button>
+        <button data-stat="obj">Flags</button>
+      </div>
+      <div style="height:10px;"></div>
+      <div class="race-panel">
+        <div class="race-header">
+          <div class="race-match-label" id="valeRaceMatchLabel">M1 vs ?</div>
+          <div class="race-controls">
+            <button class="race-btn" id="valeRacePrevBtn" title="Previous match">⏮</button>
+            <button class="race-btn race-btn-play" id="valeRacePlayBtn" title="Play">▶</button>
+            <button class="race-btn" id="valeRaceNextBtn" title="Next match">⏭</button>
+          </div>
+        </div>
+        <div class="race-bars" id="valeRaceBars" style="height:280px;"></div>
+        <div class="race-scrubber" id="valeRaceScrubber"></div>
+      </div>
+      <div class="lb-trend-note" id="valeLbTrendNote"></div>
+    </div>
+  </section>
+
+  <section id="vale-sec-kpi" style="scroll-margin-top:130px;">
+    <div class="section-head sh-kpi">
+      <h2>Player Stats Check</h2>
+      <button id="valeKpiInfoToggle" class="info-link">ℹ️ How is this calculated?</button>
+    </div>
+    <div id="valeKpiInfoPanel" class="kpi-info-panel" style="display:none;"></div>
+    <div class="sticky-filters">
+      <div class="filter-bar">
+        <select id="valeMatchFilter"></select>
+        <select id="valeJobFilter"></select>
+        <select id="valeSortByFilter">
+          <option value="reds">By Reds</option>
+          <option value="greens">By Green</option>
+          <option value="name">By Name</option>
+          <option value="kills">By Kills</option>
+          <option value="assists">By Assists</option>
+          <option value="flags">By Flags</option>
+        </select>
+        <select id="valeSortOrderFilter">
+          <option value="desc">Descending</option>
+          <option value="asc">Ascending</option>
+        </select>
+      </div>
+      <input type="search" id="valeSearchBox" placeholder="Search player name…" style="width:100%; margin-bottom:10px;">
+      <div class="kpi-summary">
+        <span>Players shown: <b id="valeShownCount">0</b></span>
+        <span>Passed all Stats: <b id="valePassAllCount">0</b></span>
+      </div>
+    </div>
+    <div id="valePlayerList"></div>
+  </section>
+</div>
+
 <div id="noDataCard" class="no-data-card" style="display:none;">
   <div class="nd-icon">🗺️</div>
   <div style="font-size:14px; font-weight:700; color:var(--text);">No Vale of Clash matches yet</div>
@@ -655,12 +788,12 @@ const DASH_SNAPSHOT = {"players":[{"match":1,"opp":"PROSGARD","result":"Win","bf
 </script>
 <script>
 // ---------- Vale of Clash: no matches yet, structure ready for next week's export ----------
-const VALE_OF_CLASH_SNAPSHOT = {"players": [], "opponents": [], "matches": []};
+const VALE_OF_CLASH_SNAPSHOT = {"players":[{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":1,"name":"Hamyzt","job":"Biochemist","role":"Support","title":"MVP","ctfS":3,"ctfA":4,"ctfB":1,"k":0,"a":113,"d":6,"perf":872},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":2,"name":"Chiizu","job":"Biochemist","role":"Support","title":null,"ctfS":4,"ctfA":3,"ctfB":1,"k":0,"a":101,"d":9,"perf":854},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":3,"name":"LordEins","job":"Doram","role":"DPS","title":null,"ctfS":3,"ctfA":2,"ctfB":2,"k":11,"a":77,"d":3,"perf":808},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":4,"name":"Hiyuki","job":"High Wizard","role":"DPS","title":null,"ctfS":4,"ctfA":2,"ctfB":1,"k":8,"a":64,"d":7,"perf":766},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":5,"name":"xChieL","job":"Doram","role":"DPS","title":null,"ctfS":2,"ctfA":2,"ctfB":0,"k":18,"a":84,"d":4,"perf":756},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":6,"name":"不CLVMZY","job":"Doram","role":"DPS","title":null,"ctfS":4,"ctfA":2,"ctfB":0,"k":3,"a":69,"d":7,"perf":716},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":7,"name":"Angell","job":"Priest","role":"Support","title":null,"ctfS":4,"ctfA":2,"ctfB":1,"k":0,"a":41,"d":4,"perf":624},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":8,"name":"Aspen★","job":"High Wizard","role":"DPS","title":null,"ctfS":3,"ctfA":2,"ctfB":0,"k":2,"a":65,"d":4,"perf":620},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":9,"name":"CuriPen","job":"High Wizard","role":"DPS","title":null,"ctfS":1,"ctfA":2,"ctfB":6,"k":11,"a":58,"d":3,"perf":612},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":10,"name":"Magenta★","job":"Biochemist","role":"Support","title":"Assist","ctfS":2,"ctfA":3,"ctfB":1,"k":0,"a":102,"d":14,"perf":608},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":11,"name":"Astral★","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":3,"ctfA":2,"ctfB":0,"k":0,"a":63,"d":3,"perf":602},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":12,"name":"kongrong","job":"Lord Knight","role":"DPS","title":"God of War","ctfS":1,"ctfA":2,"ctfB":0,"k":32,"a":66,"d":19,"perf":594},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":13,"name":"NoName","job":"Lord Knight","role":"DPS","title":null,"ctfS":2,"ctfA":3,"ctfB":1,"k":11,"a":72,"d":16,"perf":588},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":14,"name":"veji","job":"High Wizard","role":"DPS","title":null,"ctfS":1,"ctfA":3,"ctfB":4,"k":4,"a":71,"d":6,"perf":564},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":15,"name":"xZamael","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":4,"ctfA":2,"ctfB":2,"k":0,"a":32,"d":11,"perf":564},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":16,"name":"Kenma","job":"Biochemist","role":"Support","title":null,"ctfS":1,"ctfA":2,"ctfB":4,"k":0,"a":78,"d":1,"perf":562},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":17,"name":"FingerLickinツ","job":"Doram","role":"DPS","title":null,"ctfS":1,"ctfA":1,"ctfB":3,"k":6,"a":75,"d":1,"perf":550},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":18,"name":"yisheng","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":2,"ctfB":0,"k":0,"a":65,"d":0,"perf":540},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":19,"name":"Mizu水","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":3,"ctfB":1,"k":0,"a":55,"d":2,"perf":540},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":20,"name":"Mono","job":"Biochemist","role":"Support","title":null,"ctfS":1,"ctfA":1,"ctfB":3,"k":0,"a":95,"d":7,"perf":510},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":21,"name":"RyuuXZ","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":2,"ctfA":2,"ctfB":2,"k":0,"a":57,"d":4,"perf":508},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":22,"name":"Fra1n","job":"Professor","role":"DPS","title":null,"ctfS":2,"ctfA":1,"ctfB":1,"k":11,"a":55,"d":9,"perf":500},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":23,"name":"★Bardney★","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":1,"ctfA":2,"ctfB":5,"k":0,"a":49,"d":0,"perf":476},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":24,"name":"Dracth","job":"Priest","role":"Support","title":null,"ctfS":1,"ctfA":2,"ctfB":3,"k":0,"a":57,"d":0,"perf":468},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":25,"name":"PamanTibob","job":"Stalker","role":"DPS","title":null,"ctfS":1,"ctfA":1,"ctfB":0,"k":11,"a":83,"d":12,"perf":462},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":26,"name":"KELOWMANK","job":"Stalker","role":"DPS","title":null,"ctfS":2,"ctfA":2,"ctfB":0,"k":16,"a":55,"d":22,"perf":460},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":27,"name":"BORS","job":"Priest","role":"Support","title":null,"ctfS":1,"ctfA":2,"ctfB":4,"k":0,"a":49,"d":0,"perf":456},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":28,"name":"Flinx★","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":2,"ctfB":0,"k":0,"a":42,"d":0,"perf":448},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":29,"name":"GMan","job":"Lord Knight","role":"DPS","title":null,"ctfS":1,"ctfA":2,"ctfB":5,"k":9,"a":57,"d":16,"perf":438},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":30,"name":"R","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":1,"ctfA":2,"ctfB":0,"k":0,"a":67,"d":2,"perf":438},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":31,"name":"ENKI","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":1,"ctfA":2,"ctfB":6,"k":0,"a":34,"d":3,"perf":406},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":32,"name":"vallennyx","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":2,"ctfA":1,"ctfB":2,"k":0,"a":34,"d":2,"perf":396},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":33,"name":"CurryKaree","job":"Priest","role":"Support","title":null,"ctfS":1,"ctfA":1,"ctfB":0,"k":0,"a":55,"d":0,"perf":360},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":34,"name":"Argel","job":"Stalker","role":"DPS","title":null,"ctfS":1,"ctfA":1,"ctfB":4,"k":26,"a":41,"d":30,"perf":354},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":35,"name":"Phoki","job":"Professor","role":"DPS","title":null,"ctfS":1,"ctfA":4,"ctfB":2,"k":4,"a":47,"d":21,"perf":336},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":36,"name":"Pencuri","job":"Doram","role":"DPS","title":null,"ctfS":0,"ctfA":1,"ctfB":4,"k":2,"a":46,"d":12,"perf":214},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":37,"name":"Arland","job":"Gypsy/Bard","role":"Support","title":"Healing","ctfS":0,"ctfA":1,"ctfB":4,"k":0,"a":28,"d":4,"perf":192},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":38,"name":"ReXy","job":"Priest","role":"Support","title":null,"ctfS":0,"ctfA":1,"ctfB":3,"k":0,"a":27,"d":4,"perf":172},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":39,"name":"Tounytub","job":"Stalker","role":"DPS","title":null,"ctfS":0,"ctfA":1,"ctfB":3,"k":16,"a":7,"d":27,"perf":160},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":40,"name":"AdiiNp","job":"Paladin","role":"DPS","title":null,"ctfS":0,"ctfA":1,"ctfB":3,"k":0,"a":30,"d":11,"perf":128},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":1,"name":"depresso","job":"High Wizard","role":"DPS","title":"MVP","ctfS":2,"ctfA":3,"ctfB":0,"k":20,"a":79,"d":7,"perf":766},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":2,"name":"KntankTinkTunk","job":"Doram","role":"DPS","title":null,"ctfS":2,"ctfA":1,"ctfB":0,"k":10,"a":78,"d":7,"perf":582},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":3,"name":"AyongZ","job":"Biochemist","role":"Support","title":null,"ctfS":2,"ctfA":1,"ctfB":2,"k":0,"a":86,"d":5,"perf":574},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":4,"name":"IEmmān","job":"Doram","role":"DPS","title":null,"ctfS":2,"ctfA":3,"ctfB":1,"k":7,"a":52,"d":5,"perf":570},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":5,"name":"DaddyBlaze","job":"Doram","role":"DPS","title":null,"ctfS":2,"ctfA":1,"ctfB":5,"k":7,"a":58,"d":8,"perf":562},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":6,"name":"haenes","job":"Biochemist","role":"Support","title":null,"ctfS":2,"ctfA":3,"ctfB":1,"k":1,"a":72,"d":11,"perf":528},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":7,"name":"PangWei","job":"Biochemist","role":"Support","title":"Assist","ctfS":2,"ctfA":0,"ctfB":0,"k":0,"a":94,"d":5,"perf":526},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":8,"name":"Fear","job":"Doram","role":"DPS","title":null,"ctfS":2,"ctfA":1,"ctfB":0,"k":14,"a":51,"d":9,"perf":494},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":9,"name":"oAyaseo","job":"High Wizard","role":"DPS","title":null,"ctfS":2,"ctfA":1,"ctfB":1,"k":3,"a":70,"d":10,"perf":476},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":10,"name":"JellyNust","job":"Biochemist","role":"Support","title":null,"ctfS":2,"ctfA":1,"ctfB":0,"k":0,"a":89,"d":13,"perf":466},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":11,"name":"SpackJarrow","job":"Gypsy/Bard","role":"Support","title":"Healing","ctfS":2,"ctfA":2,"ctfB":0,"k":0,"a":45,"d":1,"perf":450},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":12,"name":"GOBLIN","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":2,"ctfA":0,"ctfB":6,"k":0,"a":47,"d":6,"perf":448},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":13,"name":"Freja","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":3,"ctfB":2,"k":0,"a":28,"d":3,"perf":442},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":14,"name":"Talk","job":"Doram","role":"DPS","title":null,"ctfS":2,"ctfA":1,"ctfB":0,"k":1,"a":64,"d":7,"perf":436},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":15,"name":"HELL","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":2,"ctfB":0,"k":0,"a":47,"d":4,"perf":428},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":16,"name":"RegaLia","job":"Sniper","role":"DPS","title":null,"ctfS":2,"ctfA":0,"ctfB":1,"k":16,"a":47,"d":15,"perf":418},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":17,"name":"Meowgic9","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":2,"ctfA":2,"ctfB":1,"k":0,"a":37,"d":4,"perf":414},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":18,"name":"Paeng天","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":2,"ctfA":0,"ctfB":4,"k":0,"a":39,"d":3,"perf":406},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":19,"name":"Blancpain","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":2,"ctfA":1,"ctfB":0,"k":0,"a":57,"d":9,"perf":384},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":20,"name":"Dustin","job":"High Wizard","role":"DPS","title":null,"ctfS":2,"ctfA":0,"ctfB":4,"k":0,"a":38,"d":5,"perf":382},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":21,"name":"Calliope传奇","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":2,"ctfA":0,"ctfB":0,"k":0,"a":47,"d":1,"perf":378},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":22,"name":"Michiru","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":0,"ctfB":3,"k":0,"a":32,"d":2,"perf":368},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":23,"name":"Meeko運","job":"Stalker","role":"DPS","title":"God of War","ctfS":2,"ctfA":0,"ctfB":4,"k":23,"a":31,"d":28,"perf":354},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":24,"name":"Nigga","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":2,"ctfA":1,"ctfB":0,"k":0,"a":48,"d":8,"perf":352},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":25,"name":"Nargacuga666","job":"Doram","role":"DPS","title":null,"ctfS":1,"ctfA":0,"ctfB":0,"k":5,"a":62,"d":5,"perf":348},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":26,"name":"DonPakito","job":"Doram","role":"DPS","title":null,"ctfS":1,"ctfA":0,"ctfB":4,"k":3,"a":49,"d":6,"perf":346},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":27,"name":"Dewacoli","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":1,"ctfB":0,"k":0,"a":44,"d":7,"perf":346},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":28,"name":"Caxico","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":0,"ctfB":2,"k":0,"a":30,"d":3,"perf":330},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":29,"name":"pizz","job":"Sniper","role":"DPS","title":null,"ctfS":2,"ctfA":2,"ctfB":2,"k":3,"a":36,"d":17,"perf":324},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":30,"name":"Matsunaga","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":1,"ctfB":1,"k":0,"a":29,"d":7,"perf":306},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":31,"name":"Leorio","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":0,"ctfB":0,"k":0,"a":44,"d":8,"perf":296},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":32,"name":"AttorneyJindy","job":"Sniper","role":"DPS","title":null,"ctfS":2,"ctfA":1,"ctfB":0,"k":13,"a":41,"d":24,"perf":294},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":33,"name":"Y∀RISCHT","job":"Professor","role":"DPS","title":null,"ctfS":2,"ctfA":0,"ctfB":2,"k":5,"a":30,"d":16,"perf":262},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":34,"name":"誤Papsii","job":"Stalker","role":"DPS","title":null,"ctfS":2,"ctfA":1,"ctfB":0,"k":5,"a":40,"d":20,"perf":252},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":35,"name":"buttsoup","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":1,"ctfB":0,"k":0,"a":18,"d":8,"perf":232},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":36,"name":"renzki","job":"Professor","role":"DPS","title":null,"ctfS":2,"ctfA":1,"ctfB":1,"k":1,"a":27,"d":16,"perf":220},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":37,"name":"YFMA","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":1,"ctfA":1,"ctfB":1,"k":0,"a":27,"d":6,"perf":208},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":38,"name":"Acce","job":"High Wizard","role":"DPS","title":null,"ctfS":1,"ctfA":2,"ctfB":0,"k":2,"a":70,"d":32,"perf":164},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":39,"name":"pROPHESY","job":"Sniper","role":"DPS","title":null,"ctfS":1,"ctfA":1,"ctfB":1,"k":8,"a":44,"d":28,"perf":136}],"opponents":[{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":1,"name":"คนอีสานตัวปลอม","job":"Biochemist","role":"Support","title":"MVP","ctfS":4,"ctfA":5,"ctfB":0,"k":5,"a":203,"d":3,"perf":1432},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":2,"name":"ToeyZa","job":"Rebellion","role":"DPS","title":null,"ctfS":4,"ctfA":6,"ctfB":0,"k":31,"a":140,"d":8,"perf":1430},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":3,"name":"WaygusX","job":"High Wizard","role":"DPS","title":null,"ctfS":4,"ctfA":6,"ctfB":0,"k":20,"a":150,"d":4,"perf":1400},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":4,"name":"KiLZ","job":"High Wizard","role":"DPS","title":null,"ctfS":4,"ctfA":7,"ctfB":0,"k":21,"a":130,"d":2,"perf":1390},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":5,"name":"โต้ลาย","job":"Biochemist","role":"Support","title":"Assist","ctfS":4,"ctfA":5,"ctfB":0,"k":0,"a":186,"d":3,"perf":1314},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":6,"name":"Zuka","job":"Doram","role":"DPS","title":null,"ctfS":4,"ctfA":6,"ctfB":0,"k":12,"a":135,"d":0,"perf":1300},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":7,"name":"กวยแมวสินะ","job":"Doram","role":"DPS","title":null,"ctfS":4,"ctfA":5,"ctfB":0,"k":11,"a":154,"d":3,"perf":1296},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":8,"name":"ปรินดัมแบ็คอะเก้น","job":"High Wizard","role":"DPS","title":null,"ctfS":4,"ctfA":7,"ctfB":0,"k":24,"a":118,"d":11,"perf":1282},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":9,"name":"Mangosticky","job":"Gypsy/Bard","role":"Support","title":"Healing","ctfS":4,"ctfA":7,"ctfB":0,"k":0,"a":132,"d":0,"perf":1208},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":10,"name":"ซ้าขอบัญชา","job":"High Wizard","role":"DPS","title":null,"ctfS":4,"ctfA":6,"ctfB":0,"k":16,"a":126,"d":11,"perf":1194},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":11,"name":"ADULTINDYz","job":"Doram","role":"DPS","title":null,"ctfS":4,"ctfA":7,"ctfB":0,"k":1,"a":122,"d":0,"perf":1178},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":12,"name":"iShadow","job":"Professor","role":"DPS","title":null,"ctfS":4,"ctfA":5,"ctfB":0,"k":18,"a":111,"d":9,"perf":1134},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":13,"name":"scabby","job":"Doram","role":"DPS","title":null,"ctfS":5,"ctfA":2,"ctfB":0,"k":8,"a":122,"d":3,"perf":1118},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":14,"name":"SideLineX","job":"Priest","role":"Support","title":null,"ctfS":4,"ctfA":5,"ctfB":0,"k":0,"a":129,"d":1,"perf":1106},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":15,"name":"ป้อแปร่","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":4,"ctfA":6,"ctfB":0,"k":0,"a":119,"d":4,"perf":1076},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":16,"name":"พีเตี๋ยสามดุด","job":"Priest","role":"Support","title":null,"ctfS":4,"ctfA":6,"ctfB":0,"k":0,"a":109,"d":0,"perf":1076},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":17,"name":"Siam","job":"Priest","role":"Support","title":null,"ctfS":4,"ctfA":6,"ctfB":0,"k":0,"a":102,"d":1,"perf":1038},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":18,"name":"ราชา","job":"Lord Knight","role":"DPS","title":null,"ctfS":4,"ctfA":4,"ctfB":0,"k":11,"a":127,"d":15,"perf":1028},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":19,"name":"หัวเงา","job":"Priest","role":"Support","title":null,"ctfS":4,"ctfA":5,"ctfB":0,"k":0,"a":102,"d":1,"perf":998},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":20,"name":"Since1987","job":"Priest","role":"Support","title":null,"ctfS":4,"ctfA":5,"ctfB":0,"k":0,"a":95,"d":1,"perf":970},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":21,"name":"huafoo","job":"Sniper","role":"DPS","title":"God of War","ctfS":1,"ctfA":5,"ctfB":0,"k":43,"a":64,"d":5,"perf":936},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":22,"name":"uncletutu","job":"Stalker","role":"DPS","title":null,"ctfS":5,"ctfA":1,"ctfB":0,"k":15,"a":93,"d":15,"perf":912},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":23,"name":"นุ้ยกันตา","job":"Priest","role":"Support","title":null,"ctfS":5,"ctfA":3,"ctfB":0,"k":0,"a":76,"d":2,"perf":904},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":24,"name":"FridayFunny","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":4,"ctfA":4,"ctfB":0,"k":0,"a":86,"d":1,"perf":894},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":25,"name":"Shadow7","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":5,"ctfA":0,"ctfB":0,"k":0,"a":96,"d":3,"perf":854},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":26,"name":"furby","job":"Priest","role":"Support","title":null,"ctfS":5,"ctfA":1,"ctfB":0,"k":0,"a":77,"d":3,"perf":818},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":27,"name":"MUSTACH3z","job":"Doram","role":"DPS","title":null,"ctfS":1,"ctfA":4,"ctfB":0,"k":15,"a":90,"d":0,"perf":770},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":28,"name":"PorPlai","job":"Priest","role":"Support","title":null,"ctfS":1,"ctfA":5,"ctfB":0,"k":0,"a":100,"d":0,"perf":700},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":29,"name":"21nism","job":"Biochemist","role":"Support","title":null,"ctfS":3,"ctfA":2,"ctfB":0,"k":3,"a":99,"d":13,"perf":676},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":30,"name":"MinORu","job":"Biochemist","role":"Support","title":null,"ctfS":1,"ctfA":4,"ctfB":1,"k":0,"a":98,"d":0,"perf":672},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":31,"name":"Arqtemist","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":1,"ctfA":5,"ctfB":1,"k":0,"a":82,"d":0,"perf":648},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":32,"name":"Kenshin","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":3,"ctfA":2,"ctfB":0,"k":0,"a":55,"d":3,"perf":570},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":33,"name":"MyPrince","job":"Priest","role":"Support","title":null,"ctfS":3,"ctfA":2,"ctfB":0,"k":0,"a":52,"d":4,"perf":548},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":34,"name":"จะจีวหลิว","job":"Professor","role":"DPS","title":null,"ctfS":3,"ctfA":2,"ctfB":0,"k":11,"a":51,"d":23,"perf":464},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":35,"name":"misterK","job":"Champion","role":"DPS","title":null,"ctfS":3,"ctfA":2,"ctfB":0,"k":15,"a":17,"d":16,"perf":454},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":36,"name":"LOV3","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":2,"ctfB":0,"k":0,"a":47,"d":4,"perf":428},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":37,"name":"trwj","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":1,"ctfA":2,"ctfB":1,"k":0,"a":47,"d":2,"perf":368},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":38,"name":"POPPOP","job":"Biochemist","role":"Support","title":null,"ctfS":0,"ctfA":2,"ctfB":2,"k":1,"a":62,"d":2,"perf":358},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":39,"name":"Nimoto","job":"Lord Knight","role":"DPS","title":null,"ctfS":1,"ctfA":2,"ctfB":0,"k":19,"a":33,"d":17,"perf":336},{"match":1,"opp":"egg4k","result":"Loss","bf":"Main","rank":40,"name":"tartal2os","job":"Paladin","role":"DPS","title":null,"ctfS":0,"ctfA":2,"ctfB":0,"k":6,"a":42,"d":9,"perf":218},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":1,"name":"Disz","job":"Doram","role":"DPS","title":"MVP","ctfS":5,"ctfA":3,"ctfB":0,"k":41,"a":181,"d":1,"perf":1744},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":2,"name":"ผัดไทยหมูกรอบ","job":"High Wizard","role":"DPS","title":"God of War","ctfS":4,"ctfA":5,"ctfB":0,"k":53,"a":162,"d":4,"perf":1738},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":3,"name":"EnZyme","job":"Biochemist","role":"Support","title":"Assist","ctfS":4,"ctfA":3,"ctfB":0,"k":1,"a":277,"d":3,"perf":1608},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":4,"name":"xGott","job":"High Wizard","role":"DPS","title":null,"ctfS":5,"ctfA":1,"ctfB":0,"k":38,"a":175,"d":5,"perf":1570},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":5,"name":"Ariaddon","job":"Biochemist","role":"Support","title":null,"ctfS":5,"ctfA":0,"ctfB":0,"k":0,"a":251,"d":2,"perf":1484},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":6,"name":"ผู้ชายลัลลา","job":"High Wizard","role":"DPS","title":null,"ctfS":4,"ctfA":1,"ctfB":0,"k":28,"a":191,"d":1,"perf":1474},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":7,"name":"Greedyy","job":"Doram","role":"DPS","title":null,"ctfS":4,"ctfA":5,"ctfB":0,"k":24,"a":179,"d":11,"perf":1446},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":8,"name":"MakhamV","job":"High Wizard","role":"DPS","title":null,"ctfS":5,"ctfA":1,"ctfB":0,"k":18,"a":179,"d":4,"perf":1396},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":9,"name":"DizzY","job":"Biochemist","role":"Support","title":null,"ctfS":4,"ctfA":3,"ctfB":0,"k":0,"a":220,"d":2,"perf":1380},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":10,"name":"BEEPBEEP","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":5,"ctfA":3,"ctfB":0,"k":0,"a":184,"d":2,"perf":1346},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":11,"name":"Kpwx","job":"High Wizard","role":"DPS","title":null,"ctfS":3,"ctfA":3,"ctfB":0,"k":28,"a":161,"d":1,"perf":1334},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":12,"name":"V3lkhana","job":"Priest","role":"Support","title":null,"ctfS":5,"ctfA":3,"ctfB":0,"k":0,"a":174,"d":0,"perf":1316},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":13,"name":"BABYMOONY","job":"High Wizard","role":"DPS","title":null,"ctfS":5,"ctfA":1,"ctfB":0,"k":10,"a":171,"d":8,"perf":1244},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":14,"name":"JOESAVE","job":"Biochemist","role":"Support","title":null,"ctfS":3,"ctfA":4,"ctfB":0,"k":1,"a":203,"d":5,"perf":1232},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":15,"name":"x341x","job":"Biochemist","role":"Support","title":null,"ctfS":3,"ctfA":4,"ctfB":0,"k":2,"a":182,"d":1,"perf":1198},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":16,"name":"ฮัลโหลโหม่","job":"Professor","role":"DPS","title":null,"ctfS":5,"ctfA":1,"ctfB":0,"k":7,"a":159,"d":6,"perf":1186},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":17,"name":"validus","job":"Doram","role":"DPS","title":null,"ctfS":3,"ctfA":2,"ctfB":0,"k":12,"a":181,"d":4,"perf":1184},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":18,"name":"SoliVia","job":"Biochemist","role":"Support","title":null,"ctfS":3,"ctfA":2,"ctfB":0,"k":1,"a":192,"d":1,"perf":1148},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":19,"name":"GhostFaceツ","job":"Rebellion","role":"DPS","title":null,"ctfS":3,"ctfA":4,"ctfB":0,"k":23,"a":169,"d":24,"perf":1126},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":20,"name":"Bizkie","job":"Doram","role":"DPS","title":null,"ctfS":4,"ctfA":3,"ctfB":0,"k":10,"a":127,"d":2,"perf":1108},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":21,"name":"Paws","job":"Priest","role":"Support","title":null,"ctfS":4,"ctfA":5,"ctfB":0,"k":0,"a":123,"d":1,"perf":1082},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":22,"name":"PuddingKat","job":"High Wizard","role":"DPS","title":null,"ctfS":3,"ctfA":3,"ctfB":0,"k":18,"a":132,"d":5,"perf":1078},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":23,"name":"Polia","job":"Gypsy/Bard","role":"Support","title":"Healing","ctfS":3,"ctfA":4,"ctfB":0,"k":1,"a":152,"d":0,"perf":1078},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":24,"name":"HANAMI","job":"Lord Knight","role":"DPS","title":null,"ctfS":4,"ctfA":0,"ctfB":0,"k":8,"a":151,"d":6,"perf":1034},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":25,"name":"tanx","job":"High Wizard","role":"DPS","title":null,"ctfS":2,"ctfA":4,"ctfB":0,"k":28,"a":135,"d":17,"perf":1016},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":26,"name":"MYSTIQUE","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":5,"ctfA":1,"ctfB":0,"k":0,"a":119,"d":0,"perf":1016},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":27,"name":"UCMao","job":"Priest","role":"Support","title":null,"ctfS":5,"ctfA":1,"ctfB":0,"k":0,"a":118,"d":1,"perf":1002},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":28,"name":"NongGas","job":"Priest","role":"Support","title":null,"ctfS":3,"ctfA":4,"ctfB":0,"k":0,"a":131,"d":0,"perf":984},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":29,"name":"GumMyi3ear","job":"Priest","role":"Support","title":null,"ctfS":5,"ctfA":1,"ctfB":0,"k":0,"a":108,"d":0,"perf":972},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":30,"name":"StBeLL","job":"Priest","role":"Support","title":null,"ctfS":2,"ctfA":5,"ctfB":0,"k":0,"a":138,"d":0,"perf":952},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":31,"name":"โผมเนี่ยแหละเทพ","job":"Priest","role":"Support","title":null,"ctfS":4,"ctfA":4,"ctfB":0,"k":0,"a":98,"d":0,"perf":952},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":32,"name":"KIRIN","job":"Stalker","role":"DPS","title":null,"ctfS":2,"ctfA":4,"ctfB":0,"k":27,"a":141,"d":29,"perf":934},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":33,"name":"Arona彡","job":"Priest","role":"Support","title":null,"ctfS":3,"ctfA":3,"ctfB":0,"k":0,"a":116,"d":0,"perf":884},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":34,"name":"BrainLag","job":"Priest","role":"Support","title":null,"ctfS":3,"ctfA":3,"ctfB":0,"k":0,"a":106,"d":0,"perf":844},{"match":1,"opp":"egg4k","result":"Loss","bf":"Sub","rank":35,"name":"JelLyi3ean","job":"Gypsy/Bard","role":"Support","title":null,"ctfS":4,"ctfA":0,"ctfB":0,"k":0,"a":82,"d":1,"perf":718}],"matches":[{"match":1,"opp":"egg4k","result":"Loss","guildScore":2093,"guildTarget":3000,"main":{"house":{"kills":201,"morale":2363,"sSeize":234,"sUnseal":100,"aSeize":306,"aUnseal":120,"bSeize":952,"bUnseal":180},"opp":{"kills":306,"morale":3013,"sSeize":492,"sUnseal":150,"aSeize":1398,"aUnseal":330,"bSeize":204,"bUnseal":120}},"sub":{"house":{"kills":147,"morale":2363,"sSeize":154,"sUnseal":0,"aSeize":742,"aUnseal":300,"bSeize":780,"bUnseal":240},"opp":{"kills":379,"morale":3013,"sSeize":805,"sUnseal":400,"aSeize":1029,"aUnseal":400,"bSeize":0,"bUnseal":0}}}]};
 const EVENTS = {
   'Stellar Clash': DASH_SNAPSHOT,
   'Vale of Clash': VALE_OF_CLASH_SNAPSHOT
 };
-let currentEvent = 'Stellar Clash';
+let currentEvent = 'Vale of Clash';
 function hasEventData(){ return DASH && DASH.matches && DASH.matches.length > 0; }
 
 // ---------- theme (light default / dark alternative) ----------
@@ -1901,6 +2034,11 @@ document.getElementById('akInfoToggle').addEventListener('click', ()=>{
 // anchor behavior) and also opens its explanation panel, so the person doesn't have to scroll
 // down and click the toggle separately once they land there.
 document.getElementById('navInfoBtn').addEventListener('click', ()=>{
+  if(currentEvent === 'Vale of Clash'){
+    const vPanel = document.getElementById('valeKpiInfoPanel');
+    if(vPanel.style.display === 'none') document.getElementById('valeKpiInfoToggle').click();
+    return;
+  }
   const panel = document.getElementById('kpiInfoPanel');
   const alreadyOpen = panel.style.display !== 'none';
   if(!alreadyOpen) document.getElementById('kpiInfoToggle').click();
@@ -1956,7 +2094,22 @@ function setupListeners(){
   // ONE toggle now (under Team Trends) drives all three sections — Trends, Top Performers, and
   // Player KPI Check. setupToggle already handles this element's own active-button styling on
   // click; this handler just updates the shared state and re-renders everything downstream of it.
+  // Shared across BOTH events: Stellar Clash keeps its own currentBf, Vale of Clash its own
+  // valeBf, so switching events doesn't clobber whichever battlefield you had picked on the other.
   const onBfChange = (bf)=>{
+    if(currentEvent === 'Vale of Clash'){
+      valeBf = bf;
+      renderValeTeamStats();
+      renderValeComposition();
+      renderValeTrendCharts();
+      renderValeLeaderboard();
+      populateValeFilters();
+      renderValePlayerList();
+      if(document.getElementById('valeKpiInfoPanel').style.display !== 'none') renderValeKpiInfoPanel();
+      const valeAkPanel = document.getElementById('valeAkInfoPanel');
+      if(valeAkPanel && valeAkPanel.style.display !== 'none') renderValeAkInfoPanel();
+      return;
+    }
     currentBf = bf;
     populateSortFilter();
     renderTrendCharts();
@@ -2026,8 +2179,25 @@ function setupListeners(){
 // or a placeholder card (with a preview of what's known about that event's scoring) when it doesn't yet.
 function toggleEventVisibility(){
   const has = hasEventData();
-  document.getElementById('dataSections').style.display = has ? '' : 'none';
+  const isVale = currentEvent === 'Vale of Clash';
+  document.getElementById('dataSections').style.display = (has && !isVale) ? '' : 'none';
+  document.getElementById('valeSections').style.display = (has && isVale) ? '' : 'none';
   document.getElementById('noDataCard').style.display = has ? 'none' : 'block';
+}
+
+// Side-nav anchors point at whichever event's section IDs are currently visible — same six
+// stops (Match Record / Team Composition / Team Trends / Top Performers / Player Stats Check /
+// its info bubble) for both events, just re-targeted so "jump to section" always lands on a
+// section that's actually showing instead of a hidden Stellar Clash (or Vale) section underneath.
+const SIDE_NAV_TARGETS = {
+  'Stellar Clash': ['sec-record','sec-comp','sec-trends','sec-top','sec-kpi','sec-kpi'],
+  'Vale of Clash': ['vale-sec-record','vale-sec-comp','vale-sec-trends','vale-sec-top','vale-sec-kpi','vale-sec-kpi'],
+};
+function syncSideNav(eventName){
+  const targets = SIDE_NAV_TARGETS[eventName] || SIDE_NAV_TARGETS['Stellar Clash'];
+  document.querySelectorAll('#sideNav .side-nav-item').forEach((a,i)=>{
+    if(targets[i]) a.setAttribute('href', '#'+targets[i]);
+  });
 }
 
 function switchEvent(eventName){
@@ -2043,8 +2213,18 @@ function switchEvent(eventName){
   } else {
     document.getElementById('recordPill').textContent = '–';
   }
+  syncSideNav(eventName);
+  // The shared battlefield toggle's visual state must reflect whichever bf variable belongs to
+  // the event being switched to — Stellar Clash and Vale of Clash keep independent selections.
+  const activeBf = eventName === 'Vale of Clash' ? valeBf : currentBf;
+  document.getElementById('trendBfToggle').querySelectorAll('button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.bf === activeBf);
+  });
   toggleEventVisibility();
-  if(has) initApp();
+  if(has){
+    if(currentEvent === 'Vale of Clash') initValeApp();
+    else initApp();
+  }
 }
 
 function initApp(){
@@ -2065,6 +2245,805 @@ function initApp(){
   renderLeaderboard();
   populateFilters();
   renderPlayerList();
+}
+
+// ============================================================
+// VALE OF CLASH — separate render pipeline from Stellar Clash above, but built to
+// mirror its structure exactly (Team Composition, Team Trends, Top Performers, Player
+// Stats Check) rather than being a simplified stand-in. Reuses shared, data-agnostic
+// helpers from Stellar's code (jobBadgeHtml, JOB_META, COMP_JOBS, killsApplicable,
+// median, percentile75, renderMetricChips, getChartTheme) since those don't reference
+// DASH anywhere. Vale has no Mon/Tab equivalent, so CTF captures (S+A+B flags) stands
+// in as the "objective" KPI. Scope for now: 3 scored checks (CTF, Kills, Assists) —
+// Death is shown but not scored yet, and Performance Points are dropped entirely
+// (redundant with the KPI checks, and not something to optimize toward directly).
+// ============================================================
+let valeBf = 'Main';
+const TITLE_CLASS = {'MVP':'MVP','Assist':'Assist','God of War':'GodOfWar','Healing':'Healing'};
+function valeActive(p){ return (p.k+p.a+p.d+p.ctfS+p.ctfA+p.ctfB) > 0; }
+function valeCtfTotal(p){ return p.ctfS + p.ctfA + p.ctfB; }
+
+// ---------- KPI thresholds (mirrors computeKpiThresholds/computeHouseBaseline above,
+// with CTF-total standing in for mon/tab, and no Death check yet) ----------
+function valeCollectPerMatchJobMedians(matchList, rosterFn){
+  const out = {Sub:{}, Main:{}};
+  matchList.forEach(m=>{
+    ['Sub','Main'].forEach(bf=>{
+      const roster = rosterFn(m, bf).filter(valeActive);
+      const byJob = {};
+      roster.forEach(p=>{ (byJob[p.job] = byJob[p.job] || []).push(p); });
+      Object.entries(byJob).forEach(([job, group])=>{
+        const slot = out[bf][job] = out[bf][job] || {ctf:[], k:[], a:[]};
+        slot.ctf.push(median(group.map(p=>valeCtfTotal(p))));
+        slot.k.push(median(group.map(p=>p.k)));
+        slot.a.push(median(group.map(p=>p.a)));
+      });
+    });
+  });
+  return out;
+}
+function valeComputeKpiThresholds(matchList){
+  const collected = valeCollectPerMatchJobMedians(matchList, (m, bf) =>
+    (m.result === 'Win' ? VALE_OF_CLASH_SNAPSHOT.players : VALE_OF_CLASH_SNAPSHOT.opponents).filter(p=>p.bf===bf && p.match===m.match)
+  );
+  const KPI = {Sub:{}, Main:{}};
+  ['Sub','Main'].forEach(bf=>{
+    Object.entries(collected[bf]).forEach(([job, v])=>{
+      KPI[bf][job] = {
+        ctf: v.ctf.length ? Math.round(median(v.ctf)) : null,
+        k: (killsApplicable(job) && v.k.length) ? Math.round(median(v.k)) : null,
+        a: v.a.length ? Math.round(median(v.a)) : null,
+      };
+    });
+  });
+  return KPI;
+}
+function valeComputeHouseBaseline(matchList){
+  const collected = valeCollectPerMatchJobMedians(matchList, (m, bf) => VALE_OF_CLASH_SNAPSHOT.players.filter(p=>p.bf===bf && p.match===m.match));
+  const BASE = {Sub:{}, Main:{}};
+  ['Sub','Main'].forEach(bf=>{
+    Object.entries(collected[bf]).forEach(([job, v])=>{
+      BASE[bf][job] = {
+        ctf: v.ctf.length ? Math.round(median(v.ctf)) : null,
+        k: (killsApplicable(job) && v.k.length) ? Math.round(median(v.k)) : null,
+        a: v.a.length ? Math.round(median(v.a)) : null,
+      };
+    });
+  });
+  return BASE;
+}
+function valeGetPriorMatches(matchNum, n){
+  const sorted = [...VALE_OF_CLASH_SNAPSHOT.matches].sort((a,b)=>a.match-b.match);
+  const idx = sorted.findIndex(m=>m.match===matchNum);
+  if(idx === -1) return [];
+  return sorted.slice(Math.max(0, idx-n), idx);
+}
+function valeGetKpiWindowMatches(matchNum, n){
+  const prior = valeGetPriorMatches(matchNum, n);
+  if(prior.length > 0) return prior;
+  const self = VALE_OF_CLASH_SNAPSHOT.matches.find(m=>m.match===matchNum);
+  return self ? [self] : [];
+}
+let VALE_KPI_BY_MATCH = {};
+let VALE_HOUSE_BASELINE_BY_MATCH = {};
+let VALE_KPI_OVERALL = {Sub:{}, Main:{}};
+let VALE_HOUSE_BASELINE_OVERALL = {Sub:{}, Main:{}};
+
+function valeEvalPlayer(p){
+  const kpi = ((VALE_KPI_BY_MATCH[p.match] || {})[p.bf] || {})[p.job];
+  if(!kpi) return {checks:[], fails:0, applicable:0};
+  const baseline = ((VALE_HOUSE_BASELINE_BY_MATCH[p.match] || {})[p.bf] || {})[p.job] || {};
+  const vsMedian = (val, base) => {
+    if(base===undefined || base===null) return null;
+    if(val === base) return 'at';
+    return val > base ? 'better' : 'worse';
+  };
+  const ctfVal = valeCtfTotal(p);
+  const checks = [
+    {label:'Flags', val:ctfVal, target:kpi.ctf, pass: kpi.ctf===null ? null : ctfVal>=kpi.ctf, ceil:false,
+     vsMedian: vsMedian(ctfVal, baseline.ctf), baseVal: baseline.ctf, vsMatch:null, matchVal_:undefined},
+    {label:'Kills', val:p.k, target:kpi.k, pass: kpi.k===null ? null : p.k>=kpi.k, ceil:false,
+     vsMedian: vsMedian(p.k, baseline.k), baseVal: baseline.k, vsMatch:null, matchVal_:undefined},
+    {label:'Assist', val:p.a, target:kpi.a, pass: kpi.a===null ? null : p.a>=kpi.a, ceil:false,
+     vsMedian: vsMedian(p.a, baseline.a), baseVal: baseline.a, vsMatch:null, matchVal_:undefined},
+    // Death isn't scored yet (no ceiling threshold established) — shown as a plain stat via
+    // the same "na" chip style renderMetricChips already uses for inapplicable checks.
+    {label:'Death', val:p.d, target:null, pass:null, ceil:true, vsMedian:null, baseVal:null, vsMatch:null, matchVal_:undefined},
+  ];
+  checks.forEach(c=>{ c.passFinal = c.pass; });
+  const applicableChecks = checks.filter(c=>c.passFinal!==null);
+  const fails = applicableChecks.filter(c=>c.passFinal===false).length;
+  return {checks, fails, applicable:applicableChecks.length};
+}
+
+function valeInitKpi(){
+  VALE_KPI_BY_MATCH = {};
+  VALE_HOUSE_BASELINE_BY_MATCH = {};
+  VALE_OF_CLASH_SNAPSHOT.matches.forEach(m=>{
+    const windowMatches = valeGetKpiWindowMatches(m.match, 2);
+    VALE_KPI_BY_MATCH[m.match] = valeComputeKpiThresholds(windowMatches);
+    VALE_HOUSE_BASELINE_BY_MATCH[m.match] = valeComputeHouseBaseline(windowMatches);
+  });
+  VALE_KPI_OVERALL = valeComputeKpiThresholds(VALE_OF_CLASH_SNAPSHOT.matches);
+  VALE_HOUSE_BASELINE_OVERALL = valeComputeHouseBaseline(VALE_OF_CLASH_SNAPSHOT.matches);
+}
+
+// ---------- match strip + result ----------
+function renderValeMatchStrip(){
+  const matches = VALE_OF_CLASH_SNAPSHOT.matches;
+  document.getElementById('valeMatchStrip').innerHTML = matches.map((m,i)=>{
+    const mh = m.main.house, mo = m.main.opp, sh = m.sub.house, so = m.sub.opp;
+    const isNewest = i===matches.length-1;
+    const isOldest = i===0 && matches.length>1;
+    const tag = isNewest ? '<span class="age-tag newest">Newest</span>'
+              : isOldest ? '<span class="age-tag oldest">Oldest</span>' : '';
+    return `<div class="match-card${isNewest?' is-newest':''}" data-match="${m.match}">
+      ${tag}
+      <span class="res ${m.result}">${m.result}</span>
+      <div class="m">Match ${m.match}</div>
+      <div class="opp">vs ${m.opp}</div>
+      <div class="kd">Main <b>${mh.kills}</b>/${mo.kills}</div>
+      <div class="kd">Sub <b>${sh.kills}</b>/${so.kills}</div>
+      <div class="tap-hint">Tap to focus ↴</div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('#valeMatchStrip .match-card').forEach(card=>{
+    card.addEventListener('click', ()=> valeJumpToMatch(parseInt(card.dataset.match, 10)));
+  });
+  const latest = matches[matches.length-1];
+  document.getElementById('valeResultCard').innerHTML = `
+    <div class="vr-score">${latest.guildScore.toLocaleString()} <span style="color:var(--text-dim); font-weight:600; font-size:16px;">/ ${latest.guildTarget.toLocaleString()}</span></div>
+    <div class="vr-status ${latest.result}">${latest.result === 'Win' ? 'Cleared' : 'Failed'} the guild target vs ${latest.opp}</div>`;
+}
+function valeJumpToMatch(matchNo){
+  document.querySelectorAll('#valeMatchStrip .match-card').forEach(card=>{
+    card.classList.toggle('selected', parseInt(card.dataset.match,10)===matchNo);
+  });
+  const compSel = document.getElementById('valeCompMatchFilter');
+  compSel.value = String(matchNo);
+  renderValeComposition();
+  const kpiSel = document.getElementById('valeMatchFilter');
+  kpiSel.value = String(matchNo);
+  renderValePlayerList();
+  if(document.getElementById('valeKpiInfoPanel').style.display !== 'none') renderValeKpiInfoPanel();
+}
+
+function renderValeTeamStats(){
+  const matches = VALE_OF_CLASH_SNAPSHOT.matches;
+  const key = valeBf.toLowerCase();
+  const sum = (fn) => matches.reduce((s,m)=>s+fn(m[key]),0);
+  const avg = (fn) => Math.round(sum(fn) / matches.length);
+  const rows = [
+    ['Total Kills', sum(x=>x.house.kills), sum(x=>x.opp.kills)],
+    ['Morale', avg(x=>x.house.morale), avg(x=>x.opp.morale)],
+    ['S-Tier Seize', sum(x=>x.house.sSeize), sum(x=>x.opp.sSeize)],
+    ['S-Tier Unseal', sum(x=>x.house.sUnseal), sum(x=>x.opp.sUnseal)],
+    ['A-Tier Seize', sum(x=>x.house.aSeize), sum(x=>x.opp.aSeize)],
+    ['A-Tier Unseal', sum(x=>x.house.aUnseal), sum(x=>x.opp.aUnseal)],
+    ['B-Tier Seize', sum(x=>x.house.bSeize), sum(x=>x.opp.bSeize)],
+    ['B-Tier Unseal', sum(x=>x.house.bUnseal), sum(x=>x.opp.bUnseal)],
+  ];
+  document.getElementById('valeTeamTable').innerHTML = `
+    <thead><tr><th>${valeBf} Battlefield</th><th>HOUSE</th><th>${matches[0].opp}</th></tr></thead>
+    <tbody>${rows.map(([label,h,o])=>`<tr><td>${label}</td><td>${h.toLocaleString()}</td><td>${o.toLocaleString()}</td></tr>`).join('')}</tbody>`;
+}
+
+// ---------- Team Composition (mirrors buildComposition/renderComposition above) ----------
+function valeBuildComposition(bf, matchNo){
+  const countBy = arr => {
+    const c = {}; COMP_JOBS.forEach(j=>c[j]=0);
+    arr.filter(p=>p.bf===bf && p.match===matchNo && valeActive(p)).forEach(p=>{ if(c[p.job]!==undefined) c[p.job]++; });
+    return c;
+  };
+  return { house: countBy(VALE_OF_CLASH_SNAPSHOT.players), opp: countBy(VALE_OF_CLASH_SNAPSHOT.opponents || []) };
+}
+function valeJobDetailPlayers(arr, job, bf, matchNo){
+  return arr.filter(p=>p.bf===bf && p.match===matchNo && p.job===job && valeActive(p))
+    .sort((a,b)=>a.rank-b.rank); // best rank first — Vale has no "score" field to sort by instead
+}
+function valeRenderCompDetailCol(list, colClass, label){
+  const rows = list.map(p=>
+    `<div class="comp-player-row"><span class="cpname">${p.name}</span><span class="cpkda">${p.k}/${p.a}/${p.d}</span></div>`
+  ).join('');
+  return `<div class="comp-detail-col ${colClass}"><h4>${label}</h4>${rows || '<div class="comp-detail-empty">None</div>'}</div>`;
+}
+function renderValeComposition(){
+  const sel = document.getElementById('valeCompMatchFilter');
+  if(sel.options.length===0){
+    sel.innerHTML = VALE_OF_CLASH_SNAPSHOT.matches.map(m=>`<option value="${m.match}">M${m.match} vs ${m.opp} (${m.result})</option>`).join('');
+    sel.value = Math.max(...VALE_OF_CLASH_SNAPSHOT.matches.map(m=>m.match));
+  }
+  const matchNo = parseInt(sel.value, 10);
+  const comp = valeBuildComposition(valeBf, matchNo);
+  const rows = COMP_JOBS
+    .filter(job => (comp.house[job] + comp.opp[job]) > 0)
+    .map(job=>{
+    const h = comp.house[job], o = comp.opp[job];
+    const oppLeads = o > h;
+    const barInner = `<div class="house" style="flex:${h}"></div><div class="opp" style="flex:${o}"></div>`;
+    const jobColorStyle = (!oppLeads && JOB_META[job]) ? ` style="color:${JOB_META[job].color};"` : '';
+    const detail = `<div class="comp-detail" data-job="${job}">
+      ${valeRenderCompDetailCol(valeJobDetailPlayers(VALE_OF_CLASH_SNAPSHOT.players, job, valeBf, matchNo), 'house-col', 'HOUSE')}
+      ${valeRenderCompDetailCol(valeJobDetailPlayers(VALE_OF_CLASH_SNAPSHOT.opponents || [], job, valeBf, matchNo), 'opp-col', 'Opponent')}
+    </div>`;
+    return `<div class="comp-row${oppLeads ? ' opp-lead' : ''}" data-job="${job}">
+      <div class="comp-head">
+        <span class="job"${jobColorStyle}>${JOB_META[job] ? JOB_META[job].icon+' ' : ''}${job}<span class="chev">▸</span></span>
+        <span class="counts"><b>${h}</b> HOUSE &nbsp;·&nbsp; <b class="opp-num">${o}</b> Opponent</span>
+      </div>
+      <div class="comp-bar-wrap"><div class="comp-bar">${barInner}</div></div>
+      ${detail}
+    </div>`;
+  }).join('');
+  document.getElementById('valeCompGrid').innerHTML = rows
+    ? `<div class="comp-legend"><span><i class="dot house"></i>HOUSE</span><span><i class="dot opp"></i>Opponent</span></div>${rows}`
+    : `<div class="empty-msg">No composition data for this match yet.</div>`;
+}
+let valeCompRowToggleWired = false;
+function setupValeCompRowToggle(){
+  if(valeCompRowToggleWired) return;
+  valeCompRowToggleWired = true;
+  document.getElementById('valeCompGrid').addEventListener('click', (e)=>{
+    const row = e.target.closest('.comp-row');
+    if(!row) return;
+    const job = row.dataset.job;
+    const detail = row.querySelector(`.comp-detail[data-job="${CSS.escape(job)}"]`);
+    if(!detail) return;
+    const opening = !detail.classList.contains('open');
+    document.querySelectorAll('#valeCompGrid .comp-detail.open').forEach(d=>d.classList.remove('open'));
+    document.querySelectorAll('#valeCompGrid .comp-row.expanded').forEach(r=>r.classList.remove('expanded'));
+    if(opening){ detail.classList.add('open'); row.classList.add('expanded'); }
+  });
+}
+
+// ---------- Team Trends (mirrors renderTrendCharts above; CTF-total stands in for Mon/Tab) ----------
+let valeKdChart, valeAChart, valeObjChart, valeAkChart;
+function valeTeamSum(matchNo, bf, source, keyFn){
+  return source.filter(p=>p.match===matchNo && p.bf===bf).reduce((s,p)=>s+keyFn(p), 0);
+}
+function renderValeTrendCharts(){
+  if(typeof Chart === 'undefined'){
+    ['valeKdChart','valeAChart','valeObjChart','valeAkChart'].forEach(id=>{
+      const el = document.getElementById(id);
+      if(el && el.parentElement) el.parentElement.innerHTML =
+        '<div class="empty-msg">Charts couldn\'t load (blocked network or ad-blocker). Everything else on this page still works.</div>';
+    });
+    return;
+  }
+  const matches = VALE_OF_CLASH_SNAPSHOT.matches;
+  const labels = matches.map(m=>`M${m.match}\nvs ${m.opp}`);
+  const ct = getChartTheme();
+  const kills = matches.map(m=>valeTeamSum(m.match, valeBf, VALE_OF_CLASH_SNAPSHOT.players, p=>p.k));
+  const deaths = matches.map(m=>valeTeamSum(m.match, valeBf, VALE_OF_CLASH_SNAPSHOT.players, p=>p.d));
+  const assists = matches.map(m=>valeTeamSum(m.match, valeBf, VALE_OF_CLASH_SNAPSHOT.players, p=>p.a));
+  const ctfValues = matches.map(m=>valeTeamSum(m.match, valeBf, VALE_OF_CLASH_SNAPSHOT.players, p=>valeCtfTotal(p)));
+  const barColors = matches.map(m=>m.result==='Win' ? 'rgba(63,184,127,0.75)' : 'rgba(224,92,92,0.7)');
+  const assistPerKill = kills.map((k,i)=> k>0 ? Math.round((assists[i]/k)*10)/10 : 0);
+  const oppAssistPerKill = matches.map(m=>{
+    const ok = valeTeamSum(m.match, valeBf, VALE_OF_CLASH_SNAPSHOT.opponents, p=>p.k);
+    const oa = valeTeamSum(m.match, valeBf, VALE_OF_CLASH_SNAPSHOT.opponents, p=>p.a);
+    return ok>0 ? Math.round((oa/ok)*10)/10 : 0;
+  });
+
+  const ctxKD = document.getElementById('valeKdChart').getContext('2d');
+  if(valeKdChart) valeKdChart.destroy();
+  valeKdChart = new Chart(ctxKD, {
+    type:'bar',
+    data:{ labels, datasets:[
+      {label:'Kills', data:kills, backgroundColor:ct.accentBg85, borderRadius:4, barPercentage:0.55},
+      {label:'Deaths', data:deaths, backgroundColor:'rgba(224,92,92,0.55)', borderRadius:4, barPercentage:0.55},
+    ]},
+    options:{ responsive:true, plugins:{
+      legend:{labels:{color:ct.legend, font:{size:10.5}}},
+      title:{display:true, text:'Kills vs Deaths by Match', color:ct.text, font:{size:12, weight:'700'}},
+      tooltip:{titleFont:{size:11}, bodyFont:{size:11}}
+    }, scales:{
+      x:{ticks:{color:ct.textDim, font:{size:10}}, grid:{color:ct.grid}},
+      y:{ticks:{color:ct.textDim, font:{size:10}}, grid:{color:ct.grid}, beginAtZero:true}
+    }}
+  });
+
+  const ctxA = document.getElementById('valeAChart').getContext('2d');
+  if(valeAChart) valeAChart.destroy();
+  valeAChart = new Chart(ctxA, {
+    type:'line',
+    data:{ labels, datasets:[
+      {label:'Team Assists', data:assists, borderColor:ct.accent, backgroundColor:ct.accentBg15,
+       fill:true, tension:0.35, pointBackgroundColor: barColors, pointRadius:5, pointBorderWidth:0, borderWidth:2}
+    ]},
+    options:{ responsive:true, plugins:{
+      legend:{display:false},
+      title:{display:true, text:'Team Assists by Match', color:ct.text, font:{size:12, weight:'700'}},
+    }, scales:{
+      x:{ticks:{color:ct.textDim, font:{size:10}}, grid:{color:ct.grid}},
+      y:{ticks:{color:ct.textDim, font:{size:10}}, grid:{color:ct.grid}, beginAtZero:true}
+    }}
+  });
+
+  const ctxObj = document.getElementById('valeObjChart').getContext('2d');
+  if(valeObjChart) valeObjChart.destroy();
+  valeObjChart = new Chart(ctxObj, {
+    type:'bar',
+    data:{ labels, datasets:[
+      {label:'Team Flags Captured', data:ctfValues, backgroundColor: barColors, borderRadius:4, barPercentage:0.45}
+    ]},
+    options:{ responsive:true, plugins:{
+      legend:{display:false},
+      title:{display:true, text:'Team Flags Captured by Match', color:ct.text, font:{size:12, weight:'700'}},
+      tooltip:{titleFont:{size:11}, bodyFont:{size:11}}
+    }, scales:{
+      x:{ticks:{color:ct.textDim, font:{size:10}}, grid:{color:ct.grid}},
+      y:{ticks:{color:ct.textDim, font:{size:10}}, grid:{color:ct.grid}, beginAtZero:true}
+    }}
+  });
+
+  const ctxAK = document.getElementById('valeAkChart').getContext('2d');
+  if(valeAkChart) valeAkChart.destroy();
+  valeAkChart = new Chart(ctxAK, {
+    type:'line',
+    data:{ labels, datasets:[
+      {label:'HOUSE', data:assistPerKill, borderColor:ct.accent, backgroundColor:ct.accentBg12,
+       fill:false, tension:0.35, pointBackgroundColor:ct.accent, pointRadius:4, pointBorderWidth:0, borderWidth:2},
+      {label:'Opponent', data:oppAssistPerKill, borderColor:'#e05c5c', backgroundColor:'rgba(224,92,92,0.12)',
+       fill:false, tension:0.35, pointBackgroundColor:'#e05c5c', pointRadius:4, pointBorderWidth:0, borderWidth:2}
+    ]},
+    options:{ responsive:true, plugins:{
+      legend:{display:true, position:'bottom', labels:{color:ct.legend, font:{size:10.5}, boxWidth:12, padding:10}},
+      title:{display:true, text:'Assist per Kill by Match', color:ct.text, font:{size:12, weight:'700'}},
+    }, scales:{
+      x:{ticks:{color:ct.textDim, font:{size:10}}, grid:{color:ct.grid}},
+      y:{ticks:{color:ct.textDim, font:{size:10}}, grid:{color:ct.grid}, beginAtZero:true}
+    }}
+  });
+}
+
+// ---------- Top Performers (mirrors buildLeaderboard/renderLeaderboard above) ----------
+function valeBuildLeaderboard(bf){
+  // With only 1 match loaded so far, Stellar's "must have played 2+ matches" qualifier would
+  // exclude every single player — so this floor scales with how many matches actually exist.
+  const MIN_LB_MATCHES = Math.min(2, VALE_OF_CLASH_SNAPSHOT.matches.length);
+  const rows = VALE_OF_CLASH_SNAPSHOT.players.filter(p=>p.bf===bf && valeActive(p));
+  const byPlayer = {};
+  rows.forEach(p=>{ (byPlayer[p.name] = byPlayer[p.name] || []).push(p); });
+  const entries = Object.values(byPlayer)
+    .filter(ps=>ps.length>=MIN_LB_MATCHES)
+    .map(ps=>{
+      ps.sort((a,b)=>a.match-b.match);
+      const latest = ps[ps.length-1];
+      const sum = key => ps.reduce((s,p)=>s+(p[key]||0), 0);
+      return {name:latest.name, job:latest.job, n:ps.length,
+              k:sum('k'), a:sum('a'), d:sum('d'), obj:ps.reduce((s,p)=>s+valeCtfTotal(p),0)};
+    });
+  const topN = (key, dir, pool=entries) => {
+    const secondary = key==='a' ? 'k' : 'a';
+    return [...pool].sort((x,y)=>{
+      const primary = dir==='desc' ? y[key]-x[key] : x[key]-y[key];
+      if(primary!==0) return primary;
+      const sec = y[secondary]-x[secondary];
+      if(sec!==0) return sec;
+      return x.name.localeCompare(y.name);
+    }).slice(0,10);
+  };
+  return { kills: topN('k','desc'), assist: topN('a','desc'), death: topN('d','asc'), obj: topN('obj','desc') };
+}
+function valeRenderLbPanel(title, list, key, panelId){
+  if(list.length===0) return `<div class="lb-panel"><div class="lb-title">${title}</div><div class="lb-empty">No data yet.</div></div>`;
+  const MEDAL = ['🏆','🥈','🥉'];
+  const rowHtml = (e,i) => `
+    <div class="lb-row">
+      <div class="lb-rank r${i<3 ? i+1 : ''}">${i+1}</div>
+      <div class="lb-info">
+        <div class="lb-name">${MEDAL[i] || ''} ${e.name}</div>
+        <div class="lb-meta">${e.n} match${e.n>1?'es':''}</div>
+      </div>
+      <div class="lb-value">${e[key]}</div>
+    </div>`;
+  const top3 = list.slice(0,3).map(rowHtml).join('');
+  const rest = list.slice(3);
+  let tail = '';
+  if(rest.length>0){
+    const restRows = rest.map((e,i)=>rowHtml(e,i+3)).join('');
+    tail = `<div class="lb-extra" id="vale-lb-extra-${panelId}" style="display:none;">${restRows}</div>
+      <button class="lb-toggle" id="vale-lb-toggle-${panelId}" onclick="toggleValeLbExtra('${panelId}')">Show ${rest.length} more ▾</button>`;
+  }
+  return `<div class="lb-panel"><div class="lb-title">${title}</div>${top3}${tail}</div>`;
+}
+function toggleValeLbExtra(panelId){
+  const extra = document.getElementById('vale-lb-extra-'+panelId);
+  const btn = document.getElementById('vale-lb-toggle-'+panelId);
+  const nowHidden = extra.style.display !== 'none';
+  extra.style.display = nowHidden ? 'none' : 'block';
+  btn.textContent = nowHidden ? `Show ${extra.children.length} more ▾` : 'Show less ▴';
+}
+function renderValeLeaderboard(){
+  const lb = valeBuildLeaderboard(valeBf);
+  document.getElementById('valeLbGrid').innerHTML =
+    valeRenderLbPanel('Most Kills', lb.kills, 'k', 'vkills') +
+    valeRenderLbPanel('Most Assists', lb.assist, 'a', 'vassist') +
+    valeRenderLbPanel('Fewest Deaths', lb.death, 'd', 'vdeath') +
+    valeRenderLbPanel('Most Flags Captured', lb.obj, 'obj', 'vobj');
+  if(valeLbView === 'trend') renderValeLbTrendChart();
+}
+
+// ---------- Top Performers: "By Trend" race chart (mirrors buildRaceFrames/renderRaceFrame
+// above exactly, just reading VALE_OF_CLASH_SNAPSHOT/valeBf and its own DOM ids/state so
+// Stellar Clash's race never gets touched). With only 1 match loaded, this plays as a single
+// frame — it'll actually animate once more Vale of Clash matches are added, same as Stellar
+// Clash's did from its own first match onward.
+let valeLbView = 'overall';
+let valeLbTrendStat = 'k';
+let valeRaceState = null;
+let valeRaceIdx = 0;
+let valeRacePlaying = false;
+let valeRaceTimer = null;
+let valeRaceColorMap = {};
+let valeRaceColorIdx = 0;
+
+function getValeRaceColor(name){
+  if(!valeRaceColorMap[name]){
+    valeRaceColorMap[name] = RACE_PALETTE[valeRaceColorIdx % RACE_PALETTE.length];
+    valeRaceColorIdx++;
+  }
+  return valeRaceColorMap[name];
+}
+function valeBuildRaceFrames(bf, statKey){
+  const valOf = p => statKey==='obj' ? valeCtfTotal(p) : p[statKey];
+  const cmp = statKey==='d' ? (a,b)=>a.cum-b.cum : (a,b)=>b.cum-a.cum;
+  const cumulative = {};
+  let maxVal = 1;
+  const frames = VALE_OF_CLASH_SNAPSHOT.matches.map(m=>{
+    const rows = VALE_OF_CLASH_SNAPSHOT.players.filter(p=>p.bf===bf && p.match===m.match && valeActive(p));
+    rows.forEach(p=>{ cumulative[p.name] = (cumulative[p.name] || 0) + valOf(p); });
+    const standings = Object.entries(cumulative).map(([name,cum])=>({name, cum}));
+    standings.forEach(s=>{ maxVal = Math.max(maxVal, s.cum); });
+    const ranked = [...standings].sort(cmp).slice(0, RACE_TOP_N);
+    return { match: m.match, opp: m.opp, result: m.result, rows: ranked.map((s,i)=>({name:s.name, value:s.cum, rank:i+1})) };
+  });
+  return {frames, maxVal};
+}
+function renderValeRaceFrame(){
+  const frame = valeRaceState.frames[valeRaceIdx];
+  document.getElementById('valeRaceMatchLabel').textContent = `M${frame.match} vs ${frame.opp} (${frame.result})`;
+  const container = document.getElementById('valeRaceBars');
+  const existing = {};
+  container.querySelectorAll('.race-bar-row').forEach(el=>{ existing[el.dataset.name] = el; });
+
+  const seen = new Set();
+  frame.rows.forEach((r,i)=>{
+    seen.add(r.name);
+    let el = existing[r.name];
+    let justCreated = false;
+    if(!el){
+      el = document.createElement('div');
+      el.className = 'race-bar-row';
+      el.dataset.name = r.name;
+      el.innerHTML = `<div class="race-rank"></div>
+        <div class="race-bar-track"><div class="race-bar-fill"><span class="race-name"></span></div></div>
+        <span class="race-value"></span>`;
+      el.style.top = (i * RACE_ROW_H) + 'px';
+      el.style.opacity = '0';
+      container.appendChild(el);
+      justCreated = true;
+    }
+    el.style.top = (i * RACE_ROW_H) + 'px';
+    el.style.opacity = '1';
+    el.querySelector('.race-rank').textContent = '#' + r.rank;
+    const pct = Math.max(4, Math.round((r.value / valeRaceState.maxVal) * 100));
+    const fill = el.querySelector('.race-bar-fill');
+    const color = getValeRaceColor(r.name);
+    fill.style.backgroundColor = color;
+    fill.querySelector('.race-name').textContent = r.name;
+    el.querySelector('.race-value').textContent = r.value;
+    if(justCreated){
+      fill.style.width = '4%';
+      requestAnimationFrame(()=>{ fill.style.width = pct + '%'; });
+    } else {
+      fill.style.width = pct + '%';
+    }
+  });
+
+  Object.keys(existing).forEach(name=>{
+    if(!seen.has(name)){
+      const el = existing[name];
+      el.style.opacity = '0';
+      el.style.top = (RACE_TOP_N * RACE_ROW_H) + 'px';
+      setTimeout(()=>{ if(el.parentElement) el.parentElement.removeChild(el); }, 650);
+    }
+  });
+
+  document.querySelectorAll('#valeRaceScrubber .rs-dot').forEach((d,i)=>{
+    d.classList.toggle('active', i===valeRaceIdx);
+    d.classList.toggle('past', i<valeRaceIdx);
+  });
+  document.getElementById('valeRacePrevBtn').disabled = valeRaceIdx===0;
+  document.getElementById('valeRaceNextBtn').disabled = valeRaceIdx===valeRaceState.frames.length-1;
+}
+function valeRaceGoTo(idx){
+  if(!valeRaceState) return;
+  valeRaceIdx = Math.max(0, Math.min(valeRaceState.frames.length-1, idx));
+  renderValeRaceFrame();
+}
+function valeRaceStep(){
+  if(valeRaceIdx >= valeRaceState.frames.length-1){ valeRaceStop(); return; }
+  valeRaceGoTo(valeRaceIdx+1);
+}
+function valeRacePlay(){
+  if(valeRacePlaying || !valeRaceState) return;
+  if(valeRaceIdx >= valeRaceState.frames.length-1) valeRaceIdx = -1;
+  valeRacePlaying = true;
+  const btn = document.getElementById('valeRacePlayBtn');
+  btn.textContent = '⏸'; btn.classList.add('playing'); btn.title = 'Pause';
+  valeRaceStep();
+  valeRaceTimer = setInterval(valeRaceStep, RACE_INTERVAL_MS);
+}
+function valeRaceStop(){
+  valeRacePlaying = false;
+  const btn = document.getElementById('valeRacePlayBtn');
+  if(btn){ btn.textContent = '▶'; btn.classList.remove('playing'); btn.title = 'Play'; }
+  if(valeRaceTimer){ clearInterval(valeRaceTimer); valeRaceTimer = null; }
+}
+function renderValeLbTrendChart(){
+  valeRaceStop();
+  valeRaceColorMap = {}; valeRaceColorIdx = 0;
+  valeRaceState = valeBuildRaceFrames(valeBf, valeLbTrendStat);
+  valeRaceIdx = 0;
+
+  const scrubber = document.getElementById('valeRaceScrubber');
+  scrubber.innerHTML = valeRaceState.frames.map((f,i)=>
+    `<div class="rs-dot" data-idx="${i}" title="M${f.match} vs ${f.opp}"></div>`).join('');
+  scrubber.querySelectorAll('.rs-dot').forEach(d=>{
+    d.addEventListener('click', ()=>{ valeRaceStop(); valeRaceGoTo(parseInt(d.dataset.idx,10)); });
+  });
+
+  document.getElementById('valeRaceBars').innerHTML = '';
+  renderValeRaceFrame();
+
+  const statLabel = {k:'Kills', a:'Assists', d:'Deaths', obj:'Flags Captured'}[valeLbTrendStat];
+  const noteEl = document.getElementById('valeLbTrendNote');
+  const onlyOneMatch = valeRaceState.frames.length <= 1;
+  if(noteEl) noteEl.textContent = onlyOneMatch
+    ? `Only 1 match loaded so far, so this is a single frame rather than a race — it'll animate once more Vale of Clash matches come in. Showing running total in ${statLabel}.`
+    : `Running season total in ${statLabel}, top ${RACE_TOP_N} as of each match. Tap the strip below to jump to a match, or \u23ee/\u23ed to step.`;
+
+  if(!onlyOneMatch) valeRacePlay(); // a single-frame "race" has nothing to animate, so don't auto-play it
+}
+
+function renderValeAkInfoPanel(){
+  const bfName = valeBf==='Sub' ? 'Sub-Battlefield' : 'Main Battlefield';
+  const last = VALE_OF_CLASH_SNAPSHOT.matches[VALE_OF_CLASH_SNAPSHOT.matches.length-1];
+  const a = valeTeamSum(last.match, valeBf, VALE_OF_CLASH_SNAPSHOT.players, p=>p.a);
+  const k = valeTeamSum(last.match, valeBf, VALE_OF_CLASH_SNAPSHOT.players, p=>p.k);
+  const ratio = k>0 ? Math.round((a/k)*10)/10 : 0;
+  const oa = valeTeamSum(last.match, valeBf, VALE_OF_CLASH_SNAPSHOT.opponents, p=>p.a);
+  const ok = valeTeamSum(last.match, valeBf, VALE_OF_CLASH_SNAPSHOT.opponents, p=>p.k);
+  const oppRatio = ok>0 ? Math.round((oa/ok)*10)/10 : 0;
+  document.getElementById('valeAkInfoPanel').innerHTML =
+    `Assist per Kill = Team Assists ÷ Team Kills, for ${bfName}.<br><br>` +
+    `Example, M${last.match} vs ${last.opp} (${bfName}): HOUSE ${a.toLocaleString()} assists ÷ ${k.toLocaleString()} kills = ${ratio}. ${last.opp} ${oa.toLocaleString()} assists ÷ ${ok.toLocaleString()} kills = ${oppRatio}.`;
+}
+
+// ---------- Player Stats Check (mirrors renderMetricChips/renderSingleCard/renderPlayerList) ----------
+function valeRenderSingleCard(p, ev, showMatchTag){
+  const badge = ev.applicable===0 ? '' :
+    ev.fails===0 ? `<span class="fail-badge ok">ALL GREEN</span>` : `<span class="fail-badge bad">${ev.fails} RED</span>`;
+  const titleCls = TITLE_CLASS[p.title];
+  const titleHtml = titleCls ? `<span class="title-badge ${titleCls}">${p.title}</span>` : '';
+  const primaryLabel = showMatchTag ? `vs ${p.opp}` : p.name;
+  return `<div class="player-card">
+    <div class="pc-top">
+      <span class="pc-name">${primaryLabel}</span>
+      ${jobBadgeHtml(p.job)}
+      ${titleHtml}
+      ${badge}
+    </div>
+    <div class="metric-row">${renderMetricChips(ev)}</div>
+  </div>`;
+}
+function populateValeFilters(){
+  const matchSel = document.getElementById('valeMatchFilter');
+  matchSel.innerHTML = '<option value="all">All matches</option>' +
+    VALE_OF_CLASH_SNAPSHOT.matches.map(m=>`<option value="${m.match}">M${m.match} vs ${m.opp} (${m.result})</option>`).join('');
+  const jobs = [...new Set(VALE_OF_CLASH_SNAPSHOT.players.map(p=>p.job))];
+  document.getElementById('valeJobFilter').innerHTML = '<option value="all">All jobs</option>' +
+    jobs.map(j=>`<option value="${j}">${j}</option>`).join('');
+}
+const VALE_SORT_METRIC_KEY = {reds:'fails', greens:'green', kills:'k', assists:'a', flags:'obj'};
+function valeBuildSortComparator(sortBy, sortOrder, metricsFn){
+  const flip = sortOrder === 'asc' ? -1 : 1;
+  return (a,b)=>{
+    const ma = metricsFn(a), mb = metricsFn(b);
+    if(sortBy === 'name') return flip * mb.name.localeCompare(ma.name);
+    const key = VALE_SORT_METRIC_KEY[sortBy] || 'fails';
+    return flip * (mb[key] - ma[key]);
+  };
+}
+function renderValePlayerList(){
+  const matchVal = document.getElementById('valeMatchFilter').value;
+  const jobVal = document.getElementById('valeJobFilter').value;
+  const sortBy = document.getElementById('valeSortByFilter').value;
+  const sortOrder = document.getElementById('valeSortOrderFilter').value;
+  const search = document.getElementById('valeSearchBox').value.trim().toLowerCase();
+
+  let rows = VALE_OF_CLASH_SNAPSHOT.players.filter(p=>p.bf===valeBf && valeActive(p));
+  if(matchVal!=='all') rows = rows.filter(p=>String(p.match)===matchVal);
+  if(jobVal!=='all') rows = rows.filter(p=>p.job===jobVal);
+  if(search) rows = rows.filter(p=>p.name.toLowerCase().includes(search));
+
+  const evaluated = rows.map(p=>({p, ev:valeEvalPlayer(p)}));
+
+  if(evaluated.length===0){
+    document.getElementById('valeShownCount').textContent = 0;
+    document.getElementById('valePassAllCount').textContent = 0;
+    document.getElementById('valePlayerList').innerHTML = `<div class="empty-msg">No players match these filters.</div>`;
+    return;
+  }
+
+  if(matchVal !== 'all'){
+    evaluated.sort(valeBuildSortComparator(sortBy, sortOrder, e=>({
+      fails: e.ev.fails, green: e.ev.applicable - e.ev.fails, name: e.p.name, k: e.p.k, a: e.p.a, obj: valeCtfTotal(e.p)
+    })));
+    document.getElementById('valeShownCount').textContent = evaluated.length;
+    document.getElementById('valePassAllCount').textContent = evaluated.filter(e=>e.ev.fails===0 && e.ev.applicable>0).length;
+    document.getElementById('valePlayerList').innerHTML = evaluated.map(({p,ev})=> valeRenderSingleCard(p, ev, false)).join('');
+    return;
+  }
+
+  const groups = {};
+  evaluated.forEach(e=>{ (groups[e.p.name] = groups[e.p.name] || []).push(e); });
+  const groupList = Object.entries(groups).map(([name, entries])=>{
+    entries.sort((a,b)=> a.p.match - b.p.match);
+    const applicableEntries = entries.filter(e=>e.ev.applicable>0);
+    const passedCount = applicableEntries.filter(e=>e.ev.fails===0).length;
+    const totalFails = entries.reduce((s,e)=>s+e.ev.fails,0);
+    const totalApplicable = entries.reduce((s,e)=>s+e.ev.applicable,0);
+    const latestJob = entries[entries.length-1].p.job;
+    const n = entries.length;
+    const avgK = entries.reduce((s,e)=>s+e.p.k,0) / n;
+    const avgA = entries.reduce((s,e)=>s+e.p.a,0) / n;
+    const avgFlags = entries.reduce((s,e)=>s+valeCtfTotal(e.p),0) / n;
+    const avgRed = totalFails / n;
+    const avgGreen = (totalApplicable - totalFails) / n;
+    return {name, entries, applicableEntries, passedCount, totalFails, latestJob, avgK, avgA, avgFlags, avgRed, avgGreen, n};
+  });
+  groupList.sort(valeBuildSortComparator(sortBy, sortOrder, g=>({
+    fails: g.totalFails, green: g.avgGreen, name: g.name, k: g.avgK, a: g.avgA, obj: g.avgFlags
+  })));
+
+  const statSortLabel = {kills:'Kills', assists:'Assists', flags:'Flags'}[sortBy];
+  const statSortValue = {kills:'avgK', assists:'avgA', flags:'avgFlags'}[sortBy];
+
+  document.getElementById('valeShownCount').textContent = groupList.length + ' players';
+  document.getElementById('valePassAllCount').textContent = groupList.filter(g=> g.applicableEntries.length>0 && g.passedCount===g.applicableEntries.length).length;
+  document.getElementById('valePlayerList').innerHTML = groupList.map(g=>{
+    const n = g.entries.length;
+    const rateClass = g.applicableEntries.length===0 ? '' : (g.passedCount===g.applicableEntries.length ? 'good' : (g.passedCount===0 ? 'bad' : ''));
+    const rateLabel = g.applicableEntries.length===0 ? '' : `<span class="pg-rate ${rateClass}">${g.passedCount}/${g.applicableEntries.length} passed</span>`;
+    const avgLabel = (sortBy === 'reds' || sortBy === 'greens')
+      ? `<span class="pg-rate bad">${Math.round(g.avgRed*10)/10} avg Red</span><span class="pg-rate good">${Math.round(g.avgGreen*10)/10} avg Green</span>`
+      : (statSortLabel ? `<span class="pg-rate">${Math.round(g[statSortValue]*10)/10} avg ${statSortLabel}</span>` : '');
+    const cardsHtml = g.entries.map(({p,ev})=> valeRenderSingleCard(p, ev, true)).join('');
+    return `<div class="player-group">
+      <div class="player-group-head">
+        <span class="pg-name">${g.name}</span>
+        ${jobBadgeHtml(g.latestJob)}
+        <span class="pg-count">${n} match${n>1?'es':''} played</span>
+        ${rateLabel}
+        ${avgLabel}
+      </div>
+      ${cardsHtml}
+    </div>`;
+  }).join('');
+}
+function renderValeKpiInfoPanel(){
+  const matchSel = document.getElementById('valeMatchFilter');
+  const matchVal = matchSel ? matchSel.value : 'all';
+
+  const renderThresholdRows = (tbl) => Object.entries(tbl).map(([job, t])=>{
+    const cell = v => v===null ? '—' : `≥ ${v}`;
+    return `<tr><td>${job}</td><td>${cell(t.ctf)}</td><td>${cell(t.k)}</td><td>${cell(t.a)}</td></tr>`;
+  }).join('');
+  const renderBaselineRows = (tbl, baseline) => Object.entries(tbl).map(([job, t])=>{
+    const b = baseline[job] || {ctf:null, k:null, a:null};
+    const cellClass = (bv, tv) => (bv===null || tv===null) ? 'bi-na' : (bv>=tv ? 'bi-ok' : 'bi-short');
+    const cellText = bv => bv===null ? '—' : bv;
+    return `<tr><td>${job}</td>
+      <td class="${cellClass(b.ctf,t.ctf)}">${cellText(b.ctf)}</td>
+      <td class="${cellClass(b.k,t.k)}">${cellText(b.k)}</td>
+      <td class="${cellClass(b.a,t.a)}">${cellText(b.a)}</td></tr>`;
+  }).join('');
+
+  const introP = `<p><b class="ip-title ip-gold">3 stats scored so far</b>Flags, Kills, and Assists score against the winning roster's median for that job. Death is shown but not scored yet.</p>`;
+
+  let thresholdSectionHtml, baselineSectionHtml;
+  if(matchVal === 'all'){
+    const tableAll = VALE_KPI_OVERALL[valeBf] || {};
+    const baselineAll = VALE_HOUSE_BASELINE_OVERALL[valeBf] || {};
+    thresholdSectionHtml = `
+      <p style="margin-top:10px;"><b class="ip-title ip-gold">${valeBf}-Battlefield thresholds</b>The target across every match loaded so far: the winning side's performance, pooled by job. A blank cell means that stat isn't scored for that job (Kills isn't scored for Biochemist, Gypsy/Bard or Priest). Pick a specific match below instead to see the target based on just the 2 matches right before it.</p>
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th></tr></thead><tbody>${renderThresholdRows(tableAll)}</tbody></table>`;
+    baselineSectionHtml = `
+      <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>HOUSE's own numbers, win or lose, pooled over everything loaded so far. <span class="bi-short-dot">●</span> Red means HOUSE misses the target. <span class="bi-ok-dot">●</span> Green means HOUSE meets or beats it.</p>
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th></tr></thead><tbody>${renderBaselineRows(tableAll, baselineAll)}</tbody></table>`;
+  } else {
+    const matchNum = parseInt(matchVal, 10);
+    const prior = valeGetPriorMatches(matchNum, 2);
+    const windowMatches = valeGetKpiWindowMatches(matchNum, 2);
+    const table = ((VALE_KPI_BY_MATCH[matchNum] || {})[valeBf]) || {};
+    const baseline = ((VALE_HOUSE_BASELINE_BY_MATCH[matchNum] || {})[valeBf]) || {};
+    const isSelfFallback = prior.length === 0;
+    const windowWord = isSelfFallback
+      ? `M${matchNum} itself — there's no earlier match yet, so it sets its own target`
+      : (windowMatches.length === 1 ? 'the 1 match before it' : 'the 2 matches before it');
+    const windowLabel = windowMatches.map(m=>`M${m.match} (vs ${m.opp}, ${m.result})`).join(', ');
+    thresholdSectionHtml = `
+      <p style="margin-top:10px;"><b class="ip-title ip-gold">${valeBf}-Battlefield thresholds</b>The target that applied to M${matchNum}: the winning side's performance in ${windowWord}, ${windowLabel}. A blank cell means that stat isn't scored for that job.</p>
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th></tr></thead><tbody>${renderThresholdRows(table)}</tbody></table>`;
+    baselineSectionHtml = `
+      <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>HOUSE's own numbers over ${windowWord}. <span class="bi-short-dot">●</span> Red means HOUSE would have missed that target. <span class="bi-ok-dot">●</span> Green means HOUSE would have met or beaten it.</p>
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th></tr></thead><tbody>${renderBaselineRows(table, baseline)}</tbody></table>`;
+  }
+
+  document.getElementById('valeKpiInfoPanel').innerHTML = introP + thresholdSectionHtml + baselineSectionHtml;
+}
+
+let valeBfListenersWired = false;
+function setupValeListeners(){
+  if(valeBfListenersWired) return;
+  valeBfListenersWired = true;
+  // Battlefield toggle itself is wired once, generically, in setupListeners() above (the same
+  // physical trendBfToggle element Stellar Clash uses) — nothing Vale-specific to wire here.
+  setupValeCompRowToggle();
+  document.getElementById('valeCompMatchFilter').addEventListener('change', renderValeComposition);
+  ['valeMatchFilter','valeJobFilter','valeSortByFilter','valeSortOrderFilter'].forEach(id=>{
+    document.getElementById(id).addEventListener('change', renderValePlayerList);
+  });
+  document.getElementById('valeSearchBox').addEventListener('input', renderValePlayerList);
+  document.getElementById('valeKpiInfoToggle').addEventListener('click', ()=>{
+    const panel = document.getElementById('valeKpiInfoPanel');
+    const open = panel.style.display !== 'none';
+    panel.style.display = open ? 'none' : 'block';
+    document.getElementById('valeKpiInfoToggle').textContent = open ? 'ℹ️ How is this calculated?' : '✕ Hide details';
+    if(!open) renderValeKpiInfoPanel();
+  });
+  document.getElementById('valeAkInfoToggle').addEventListener('click', ()=>{
+    const panel = document.getElementById('valeAkInfoPanel');
+    const open = panel.style.display !== 'none';
+    panel.style.display = open ? 'none' : 'block';
+    if(!open) renderValeAkInfoPanel();
+  });
+  document.getElementById('valeLbViewToggle').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.getElementById('valeLbViewToggle').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      valeLbView = btn.dataset.view;
+      document.getElementById('valeLbGrid').style.display = valeLbView==='overall' ? '' : 'none';
+      document.getElementById('valeLbTrendView').style.display = valeLbView==='trend' ? '' : 'none';
+      if(valeLbView==='trend') renderValeLbTrendChart(); else valeRaceStop();
+    });
+  });
+  document.getElementById('valeLbTrendStatToggle').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.getElementById('valeLbTrendStatToggle').querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      valeLbTrendStat = btn.dataset.stat;
+      renderValeLbTrendChart();
+    });
+  });
+  document.getElementById('valeRacePrevBtn').addEventListener('click', ()=>{ valeRaceStop(); valeRaceGoTo(valeRaceIdx-1); });
+  document.getElementById('valeRaceNextBtn').addEventListener('click', ()=>{ valeRaceStop(); valeRaceGoTo(valeRaceIdx+1); });
+  document.getElementById('valeRacePlayBtn').addEventListener('click', ()=>{ valeRacePlaying ? valeRaceStop() : valeRacePlay(); });
+}
+
+function initValeApp(){
+  setupValeListeners();
+  valeInitKpi();
+  renderValeMatchStrip();
+  renderValeTeamStats();
+  renderValeComposition();
+  renderValeTrendCharts();
+  renderValeLeaderboard();
+  populateValeFilters();
+  renderValePlayerList();
 }
 
 // ---------- data: embedded snapshot renders instantly, sheet sync upgrades it ----------
@@ -2100,8 +3079,24 @@ try{
 // render everything from the embedded snapshot — self-contained, no network dependency
 try{
   setupListeners();
+  const hasInitial = hasEventData();
+  document.getElementById('headerSub').textContent = hasInitial
+    ? `${currentEvent} · ${DASH.matches.length} match${DASH.matches.length===1?'':'es'}`
+    : `${currentEvent} · no matches yet`;
+  if(hasInitial){
+    const wins = DASH.matches.filter(m=>m.result==='Win').length;
+    document.getElementById('recordPill').textContent = `${wins}W – ${DASH.matches.length-wins}L`;
+  }
+  syncSideNav(currentEvent);
+  const initialActiveBf = currentEvent === 'Vale of Clash' ? valeBf : currentBf;
+  document.getElementById('trendBfToggle').querySelectorAll('button').forEach(b=>{
+    b.classList.toggle('active', b.dataset.bf === initialActiveBf);
+  });
   toggleEventVisibility();
-  if(hasEventData()) initApp();
+  if(hasInitial){
+    if(currentEvent === 'Vale of Clash') initValeApp();
+    else initApp();
+  }
 }catch(err){
   showFatalError(err);
 }
