@@ -1506,7 +1506,7 @@ function renderPlayerList(){
     const rateClass = g.applicableEntries.length===0 ? '' : (g.passedCount===g.applicableEntries.length ? 'good' : (g.passedCount===0 ? 'bad' : ''));
     const rateLabel = g.applicableEntries.length===0 ? '' :
       `<span class="pg-rate ${rateClass}">${g.passedCount}/${g.applicableEntries.length} passed</span>`;
-    const avgLabel = (sortBy === 'reds' || sortBy === 'greens')
+    const avgLabel = g.applicableEntries.length===0 ? '' : (sortBy === 'reds' || sortBy === 'greens')
       ? `<span class="pg-rate bad">${Math.round(g.avgRed*10)/10} avg Red</span><span class="pg-rate good">${Math.round(g.avgGreen*10)/10} avg Green</span>`
       : (statSortLabel ? `<span class="pg-rate">${Math.round(g[statSortValue]*10)/10} avg ${statSortLabel}</span>` : '');
     const smallSampleNote = (STAT_SORT_KEYS.includes(sortBy) && g.n < MIN_STATS_MATCHES)
@@ -2273,10 +2273,11 @@ function valeCollectPerMatchJobMedians(matchList, rosterFn){
       const byJob = {};
       roster.forEach(p=>{ (byJob[p.job] = byJob[p.job] || []).push(p); });
       Object.entries(byJob).forEach(([job, group])=>{
-        const slot = out[bf][job] = out[bf][job] || {ctf:[], k:[], a:[]};
+        const slot = out[bf][job] = out[bf][job] || {ctf:[], k:[], a:[], d:[]};
         slot.ctf.push(median(group.map(p=>valeCtfTotal(p))));
         slot.k.push(median(group.map(p=>p.k)));
         slot.a.push(median(group.map(p=>p.a)));
+        slot.d.push(median(group.map(p=>p.d)));
       });
     });
   });
@@ -2293,6 +2294,7 @@ function valeComputeKpiThresholds(matchList){
         ctf: v.ctf.length ? Math.round(median(v.ctf)) : null,
         k: (killsApplicable(job) && v.k.length) ? Math.round(median(v.k)) : null,
         a: v.a.length ? Math.round(median(v.a)) : null,
+        d: v.d.length ? Math.round(percentile75(v.d)) : null,
       };
     });
   });
@@ -2307,6 +2309,7 @@ function valeComputeHouseBaseline(matchList){
         ctf: v.ctf.length ? Math.round(median(v.ctf)) : null,
         k: (killsApplicable(job) && v.k.length) ? Math.round(median(v.k)) : null,
         a: v.a.length ? Math.round(median(v.a)) : null,
+        d: v.d.length ? Math.round(percentile75(v.d)) : null,
       };
     });
   });
@@ -2330,25 +2333,28 @@ let VALE_KPI_OVERALL = {Sub:{}, Main:{}};
 let VALE_HOUSE_BASELINE_OVERALL = {Sub:{}, Main:{}};
 
 function valeEvalPlayer(p){
-  const kpi = ((VALE_KPI_BY_MATCH[p.match] || {})[p.bf] || {})[p.job];
-  if(!kpi) return {checks:[], fails:0, applicable:0};
+  // If the opponent fielded nobody in this job for this battlefield/match, there's no winning-
+  // roster number to set a target from — fall back to all-null so every check still renders with
+  // the player's real value, just ungraded (same "na" treatment Kills already gets for support
+  // jobs), rather than hiding their stats entirely just because nothing could be scored.
+  const kpi = ((VALE_KPI_BY_MATCH[p.match] || {})[p.bf] || {})[p.job] || {ctf:null, k:null, a:null, d:null};
   const baseline = ((VALE_HOUSE_BASELINE_BY_MATCH[p.match] || {})[p.bf] || {})[p.job] || {};
-  const vsMedian = (val, base) => {
+  const vsMedian = (val, base, ceil) => {
     if(base===undefined || base===null) return null;
     if(val === base) return 'at';
-    return val > base ? 'better' : 'worse';
+    const better = ceil ? val < base : val > base;
+    return better ? 'better' : 'worse';
   };
   const ctfVal = valeCtfTotal(p);
   const checks = [
     {label:'Flags', val:ctfVal, target:kpi.ctf, pass: kpi.ctf===null ? null : ctfVal>=kpi.ctf, ceil:false,
-     vsMedian: vsMedian(ctfVal, baseline.ctf), baseVal: baseline.ctf, vsMatch:null, matchVal_:undefined},
+     vsMedian: vsMedian(ctfVal, baseline.ctf, false), baseVal: baseline.ctf, vsMatch:null, matchVal_:undefined},
     {label:'Kills', val:p.k, target:kpi.k, pass: kpi.k===null ? null : p.k>=kpi.k, ceil:false,
-     vsMedian: vsMedian(p.k, baseline.k), baseVal: baseline.k, vsMatch:null, matchVal_:undefined},
+     vsMedian: vsMedian(p.k, baseline.k, false), baseVal: baseline.k, vsMatch:null, matchVal_:undefined},
     {label:'Assist', val:p.a, target:kpi.a, pass: kpi.a===null ? null : p.a>=kpi.a, ceil:false,
-     vsMedian: vsMedian(p.a, baseline.a), baseVal: baseline.a, vsMatch:null, matchVal_:undefined},
-    // Death isn't scored yet (no ceiling threshold established) — shown as a plain stat via
-    // the same "na" chip style renderMetricChips already uses for inapplicable checks.
-    {label:'Death', val:p.d, target:null, pass:null, ceil:true, vsMedian:null, baseVal:null, vsMatch:null, matchVal_:undefined},
+     vsMedian: vsMedian(p.a, baseline.a, false), baseVal: baseline.a, vsMatch:null, matchVal_:undefined},
+    {label:'Death', val:p.d, target:kpi.d, pass: kpi.d===null ? null : p.d<=kpi.d, ceil:true,
+     vsMedian: vsMedian(p.d, baseline.d, true), baseVal: baseline.d, vsMatch:null, matchVal_:undefined},
   ];
   checks.forEach(c=>{ c.passFinal = c.pass; });
   const applicableChecks = checks.filter(c=>c.passFinal!==null);
@@ -2918,7 +2924,7 @@ function renderValePlayerList(){
     const n = g.entries.length;
     const rateClass = g.applicableEntries.length===0 ? '' : (g.passedCount===g.applicableEntries.length ? 'good' : (g.passedCount===0 ? 'bad' : ''));
     const rateLabel = g.applicableEntries.length===0 ? '' : `<span class="pg-rate ${rateClass}">${g.passedCount}/${g.applicableEntries.length} passed</span>`;
-    const avgLabel = (sortBy === 'reds' || sortBy === 'greens')
+    const avgLabel = g.applicableEntries.length===0 ? '' : (sortBy === 'reds' || sortBy === 'greens')
       ? `<span class="pg-rate bad">${Math.round(g.avgRed*10)/10} avg Red</span><span class="pg-rate good">${Math.round(g.avgGreen*10)/10} avg Green</span>`
       : (statSortLabel ? `<span class="pg-rate">${Math.round(g[statSortValue]*10)/10} avg ${statSortLabel}</span>` : '');
     const cardsHtml = g.entries.map(({p,ev})=> valeRenderSingleCard(p, ev, true)).join('');
@@ -2939,20 +2945,21 @@ function renderValeKpiInfoPanel(){
   const matchVal = matchSel ? matchSel.value : 'all';
 
   const renderThresholdRows = (tbl) => Object.entries(tbl).map(([job, t])=>{
-    const cell = v => v===null ? '—' : `≥ ${v}`;
-    return `<tr><td>${job}</td><td>${cell(t.ctf)}</td><td>${cell(t.k)}</td><td>${cell(t.a)}</td></tr>`;
+    const cell = (v, ceil) => v===null ? '—' : (ceil ? `≤ ${v}` : `≥ ${v}`);
+    return `<tr><td>${job}</td><td>${cell(t.ctf,false)}</td><td>${cell(t.k,false)}</td><td>${cell(t.a,false)}</td><td>${cell(t.d,true)}</td></tr>`;
   }).join('');
   const renderBaselineRows = (tbl, baseline) => Object.entries(tbl).map(([job, t])=>{
-    const b = baseline[job] || {ctf:null, k:null, a:null};
-    const cellClass = (bv, tv) => (bv===null || tv===null) ? 'bi-na' : (bv>=tv ? 'bi-ok' : 'bi-short');
+    const b = baseline[job] || {ctf:null, k:null, a:null, d:null};
+    const cellClass = (bv, tv, ceil) => (bv===null || tv===null) ? 'bi-na' : ((ceil ? bv<=tv : bv>=tv) ? 'bi-ok' : 'bi-short');
     const cellText = bv => bv===null ? '—' : bv;
     return `<tr><td>${job}</td>
-      <td class="${cellClass(b.ctf,t.ctf)}">${cellText(b.ctf)}</td>
-      <td class="${cellClass(b.k,t.k)}">${cellText(b.k)}</td>
-      <td class="${cellClass(b.a,t.a)}">${cellText(b.a)}</td></tr>`;
+      <td class="${cellClass(b.ctf,t.ctf,false)}">${cellText(b.ctf)}</td>
+      <td class="${cellClass(b.k,t.k,false)}">${cellText(b.k)}</td>
+      <td class="${cellClass(b.a,t.a,false)}">${cellText(b.a)}</td>
+      <td class="${cellClass(b.d,t.d,true)}">${cellText(b.d)}</td></tr>`;
   }).join('');
 
-  const introP = `<p><b class="ip-title ip-gold">3 stats scored so far</b>Flags, Kills, and Assists score against the winning roster's median for that job. Death is shown but not scored yet.</p>`;
+  const introP = `<p><b class="ip-title ip-gold">4 stats scored</b>Flags, Kills, and Assists floor at the winning roster's median for that job. Death ceilings at the 75th percentile — lower is better.</p>`;
 
   let thresholdSectionHtml, baselineSectionHtml;
   if(matchVal === 'all'){
@@ -2960,10 +2967,10 @@ function renderValeKpiInfoPanel(){
     const baselineAll = VALE_HOUSE_BASELINE_OVERALL[valeBf] || {};
     thresholdSectionHtml = `
       <p style="margin-top:10px;"><b class="ip-title ip-gold">${valeBf}-Battlefield thresholds</b>The target across every match loaded so far: the winning side's performance, pooled by job. A blank cell means that stat isn't scored for that job (Kills isn't scored for Biochemist, Gypsy/Bard or Priest). Pick a specific match below instead to see the target based on just the 2 matches right before it.</p>
-      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th></tr></thead><tbody>${renderThresholdRows(tableAll)}</tbody></table>`;
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderThresholdRows(tableAll)}</tbody></table>`;
     baselineSectionHtml = `
       <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>HOUSE's own numbers, win or lose, pooled over everything loaded so far. <span class="bi-short-dot">●</span> Red means HOUSE misses the target. <span class="bi-ok-dot">●</span> Green means HOUSE meets or beats it.</p>
-      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th></tr></thead><tbody>${renderBaselineRows(tableAll, baselineAll)}</tbody></table>`;
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderBaselineRows(tableAll, baselineAll)}</tbody></table>`;
   } else {
     const matchNum = parseInt(matchVal, 10);
     const prior = valeGetPriorMatches(matchNum, 2);
@@ -2977,10 +2984,10 @@ function renderValeKpiInfoPanel(){
     const windowLabel = windowMatches.map(m=>`M${m.match} (vs ${m.opp}, ${m.result})`).join(', ');
     thresholdSectionHtml = `
       <p style="margin-top:10px;"><b class="ip-title ip-gold">${valeBf}-Battlefield thresholds</b>The target that applied to M${matchNum}: the winning side's performance in ${windowWord}, ${windowLabel}. A blank cell means that stat isn't scored for that job.</p>
-      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th></tr></thead><tbody>${renderThresholdRows(table)}</tbody></table>`;
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderThresholdRows(table)}</tbody></table>`;
     baselineSectionHtml = `
       <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>HOUSE's own numbers over ${windowWord}. <span class="bi-short-dot">●</span> Red means HOUSE would have missed that target. <span class="bi-ok-dot">●</span> Green means HOUSE would have met or beaten it.</p>
-      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th></tr></thead><tbody>${renderBaselineRows(table, baseline)}</tbody></table>`;
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderBaselineRows(table, baseline)}</tbody></table>`;
   }
 
   document.getElementById('valeKpiInfoPanel').innerHTML = introP + thresholdSectionHtml + baselineSectionHtml;
