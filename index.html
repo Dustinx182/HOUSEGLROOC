@@ -2432,17 +2432,18 @@ function valeComputeHouseBaseline(matchList){
   });
   return BASE;
 }
-function valeGetPriorMatches(matchNum, n){
+// Window = the last N matches ENDING AT AND INCLUDING matchNum — "current + previous", not
+// "strictly before it". Changed by request: the old "before it" window meant a job HOUSE (or
+// the winning side) picked up for the very first time in the match being viewed had no data
+// anywhere in its own window — e.g. M2's own winning Sub-Sniper roster couldn't set M2's own
+// target, and M2's own first-time Sub-Lord-Knights couldn't appear in HOUSE's own M2 baseline —
+// even though that data obviously exists once the match is over. Including the current match
+// fixes both: a job's own match now counts toward its own target/baseline the moment it's played.
+function valeGetKpiWindowMatches(matchNum, n){
   const sorted = [...VALE_OF_CLASH_SNAPSHOT.matches].sort((a,b)=>a.match-b.match);
   const idx = sorted.findIndex(m=>m.match===matchNum);
   if(idx === -1) return [];
-  return sorted.slice(Math.max(0, idx-n), idx);
-}
-function valeGetKpiWindowMatches(matchNum, n){
-  const prior = valeGetPriorMatches(matchNum, n);
-  if(prior.length > 0) return prior;
-  const self = VALE_OF_CLASH_SNAPSHOT.matches.find(m=>m.match===matchNum);
-  return self ? [self] : [];
+  return sorted.slice(Math.max(0, idx-n+1), idx+1);
 }
 let VALE_KPI_BY_MATCH = {};
 let VALE_HOUSE_BASELINE_BY_MATCH = {};
@@ -3124,7 +3125,7 @@ function renderValeKpiInfoPanel(){
     const baselineAll = VALE_HOUSE_BASELINE_OVERALL[valeBf] || {};
     const jobsAll = [...new Set([...Object.keys(tableAll), ...Object.keys(baselineAll)])].sort();
     thresholdSectionHtml = `
-      <p style="margin-top:10px;"><b class="ip-title ip-gold">${valeBf}-Battlefield thresholds</b>The target across every match loaded so far: the winning side's performance, pooled by job. A blank cell means that stat isn't scored for that job (Kills isn't scored for Biochemist, Gypsy/Bard or Priest). Pick a specific match below instead to see the target based on just the 2 matches right before it.</p>
+      <p style="margin-top:10px;"><b class="ip-title ip-gold">${valeBf}-Battlefield thresholds</b>The target across every match loaded so far: the winning side's performance, pooled by job. A blank cell means that stat isn't scored for that job (Kills isn't scored for Biochemist, Gypsy/Bard or Priest). Pick a specific match below instead to see the target based on just the 2 matches through it.</p>
       <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderThresholdRows(tableAll, jobsAll)}</tbody></table>`;
     baselineSectionHtml = `
       <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>HOUSE's own numbers, win or lose, pooled over everything loaded so far. <span class="bi-short-dot">●</span> Red means HOUSE misses the target. <span class="bi-ok-dot">●</span> Green means HOUSE meets or beats it.</p>
@@ -3132,7 +3133,9 @@ function renderValeKpiInfoPanel(){
     matchSectionHtml = `<p style="margin-top:12px;"><b class="ip-title ip-blue">This match's median</b>Pick a specific match below to see that match's own per-job median. Every match has different numbers, so there's nothing to show for "All matches."</p>`;
   } else {
     const matchNum = parseInt(matchVal, 10);
-    const prior = valeGetPriorMatches(matchNum, 2);
+    // Inclusive window: the last (up to) 2 matches ENDING AT this one, so the match being viewed
+    // contributes its own winning-side/HOUSE data to its own target and baseline, instead of only
+    // matches strictly before it.
     const windowMatches = valeGetKpiWindowMatches(matchNum, 2);
     table = ((VALE_KPI_BY_MATCH[matchNum] || {})[valeBf]) || {};
     const baseline = ((VALE_HOUSE_BASELINE_BY_MATCH[matchNum] || {})[valeBf]) || {};
@@ -3141,16 +3144,15 @@ function renderValeKpiInfoPanel(){
     const mmPrefix = `${valeBf}|${matchVal}|`;
     const matchJobs = Object.keys(VALE_MATCH_MEDIANS).filter(k=>k.startsWith(mmPrefix)).map(k=>k.slice(mmPrefix.length));
     const jobList = [...new Set([...Object.keys(table), ...Object.keys(baseline), ...matchJobs])].sort();
-    const isSelfFallback = prior.length === 0;
-    const windowWord = isSelfFallback
-      ? `M${matchNum} itself — there's no earlier match yet, so it sets its own target`
-      : (windowMatches.length === 1 ? 'the 1 match before it' : 'the 2 matches before it');
     const windowLabel = windowMatches.map(m=>`M${m.match} (vs ${m.opp}, ${m.result})`).join(', ');
+    const windowWord = windowMatches.length === 1
+      ? `M${matchNum} itself — there's no earlier match loaded yet`
+      : `the ${windowMatches.length} matches through M${matchNum}`;
     thresholdSectionHtml = `
-      <p style="margin-top:10px;"><b class="ip-title ip-gold">${valeBf}-Battlefield thresholds</b>The target that applied to M${matchNum}: the winning side's performance in ${windowWord}, ${windowLabel}. A blank cell means that stat isn't scored for that job — either it's never scored for that job, or nobody on the winning side of ${isSelfFallback ? 'that match' : 'those matches'} played it.</p>
+      <p style="margin-top:10px;"><b class="ip-title ip-gold">${valeBf}-Battlefield thresholds</b>The target for M${matchNum}: the winning side's performance in ${windowWord}, ${windowLabel} — M${matchNum}'s own result counts toward its own target. A blank cell means that stat isn't scored for that job, or nobody on the winning side of those matches played it.</p>
       <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderThresholdRows(table, jobList)}</tbody></table>`;
     baselineSectionHtml = `
-      <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>HOUSE's own numbers over ${windowWord}. <span class="bi-short-dot">●</span> Red means HOUSE would have missed that target. <span class="bi-ok-dot">●</span> Green means HOUSE would have met or beaten it. A grey dash means there's nothing on one side or the other to compare — often because no target exists for that job this match (see above), even when HOUSE has real numbers for it.</p>
+      <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>HOUSE's own numbers (win or lose) over ${windowWord}, including M${matchNum} itself. <span class="bi-short-dot">●</span> Red means HOUSE missed the target. <span class="bi-ok-dot">●</span> Green means HOUSE met or beat it. A grey dash means HOUSE never played that job across ${windowMatches.length===1?'that match':'those matches'} at all.</p>
       <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderBaselineRows(table, baseline, jobList)}</tbody></table>`;
 
     // ---- third table: the selected match's own per-job medians ----
@@ -3181,7 +3183,7 @@ function renderValeKpiInfoPanel(){
   }
 
   document.getElementById('valeKpiInfoPanel').innerHTML = `
-    <p><b class="ip-title ip-plain">Based on recent form, not everything loaded</b>The target and HOUSE's median below use the 2 matches right before the one you're viewing. Select "All matches" to see everything loaded pooled instead.</p>
+    <p><b class="ip-title ip-plain">Based on recent form, not everything loaded</b>The target and HOUSE's median below use the 2 matches through the one you're viewing — including its own result. Select "All matches" to see everything loaded pooled instead.</p>
     <p><b class="ip-title ip-win">How a chip turns green</b>Clear the target and it turns green. Or beat both tags on the chip: <span style="color:var(--median-house);font-weight:700;">HOUSE median</span> and <span style="color:var(--dps);font-weight:700;">match median</span>. A tie on either still counts.</p>
     <p><b class="ip-title ip-gold">4 stats scored</b>Flags, Kills, and Assists floor at the winning roster's median for that job. Death ceilings at the 75th percentile — lower is better.</p>
     ${thresholdSectionHtml}
@@ -3189,7 +3191,7 @@ function renderValeKpiInfoPanel(){
     ${matchSectionHtml}
     <p style="margin-top:12px;"><b class="ip-title ip-purple">The two tags</b></p>
     <ul style="margin:2px 0 0 18px; padding:0; font-size:11.5px; color:var(--text-dim); line-height:1.6;">
-      <li><b style="color:var(--median-house);">Gold</b>: compares you to HOUSE's own median over the two matches before this one.</li>
+      <li><b style="color:var(--median-house);">Gold</b>: compares you to HOUSE's own median over the two matches through this one, including this match's own result.</li>
       <li><b style="color:var(--dps);">Blue</b>: compares you to everyone who played your job in that match, both sides — even just one other person counts.</li>
     </ul>`;
 }
