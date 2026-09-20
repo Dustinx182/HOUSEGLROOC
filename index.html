@@ -653,8 +653,8 @@
    flag-on-a-pole shape (SVG, injected from JS with the type's color), not a plain block,
    so it reads as "a flag" rather than a colored tile dropped onto the map. */
 .map-flag-ghost{
-  position:fixed; z-index:999; width:24px; height:30px; margin:-28px 0 0 -6px;
-  pointer-events:none; opacity:0.9; filter:drop-shadow(0 3px 6px rgba(0,0,0,0.65));
+  position:fixed; z-index:999; width:42px; height:52px; margin:-49px 0 0 -11px;
+  pointer-events:none; opacity:0.9; filter:drop-shadow(0 4px 8px rgba(0,0,0,0.65));
 }
 .map-flag-ghost svg{width:100%; height:100%; display:block;}
 
@@ -662,8 +662,8 @@
    Anchored so the little dot at the base of the pole (not the icon's bounding box) sits
    exactly on the (x%, y%) point, like it's planted in the ground there. */
 .map-flag{
-  position:absolute; transform:translate(-25%,-90%); z-index:3; width:24px; height:30px;
-  cursor:grab; touch-action:none; filter:drop-shadow(0 2px 5px rgba(0,0,0,0.65));
+  position:absolute; transform:translate(-25%,-90%); z-index:3; width:42px; height:52px;
+  cursor:grab; touch-action:none; filter:drop-shadow(0 3px 7px rgba(0,0,0,0.65));
 }
 .map-flag svg{width:100%; height:100%; display:block; pointer-events:none;}
 .map-flag:active, .map-flag.dragging{cursor:grabbing; z-index:20;}
@@ -4409,10 +4409,15 @@ let mapFlags = [];
 // reads as "a flag" planted on the map. The little dot at the base of the pole is the
 // exact anchor point — .map-flag's CSS transform lines that dot up with (x%, y%).
 function mapFlagIconSvg(color){
+  // The soft ringed disc under the pole echoes the circular badge look the map's own
+  // capture-point icons already use, without trying to fully copy their painted detail
+  // (a low-fidelity redraw of those would just look like a worse version of the real thing).
   return `<svg viewBox="0 0 24 30" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="6" cy="27" r="6.4" fill="${color}" opacity="0.28"/>
+    <circle cx="6" cy="27" r="6.4" fill="none" stroke="${color}" stroke-width="0.8" opacity="0.7"/>
     <line x1="6" y1="3" x2="6" y2="27" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
     <path d="M6 3 L21 8.5 L6 14 Z" fill="${color}" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round"/>
-    <circle cx="6" cy="27" r="2.6" fill="#ffffff" stroke="${color}" stroke-width="1.2"/>
+    <circle cx="6" cy="27" r="2.8" fill="#ffffff" stroke="${color}" stroke-width="1.2"/>
   </svg>`;
 }
 
