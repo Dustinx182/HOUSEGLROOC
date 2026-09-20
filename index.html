@@ -770,6 +770,8 @@
 
   <section id="vale-sec-teamstats" style="scroll-margin-top:130px;">
     <div class="section-head sh-record"><h2>Team Stats</h2></div>
+    <div style="height:10px;"></div>
+    <select id="valeStatsMatchFilter" style="width:100%; margin-bottom:12px;"></select>
     <div class="chart-panel" id="valeTeamStatsWrap">
       <table class="vale-team-table" id="valeTeamTable"></table>
     </div>
@@ -2535,6 +2537,9 @@ function valeJumpToMatch(matchNo){
   document.querySelectorAll('#valeMatchStrip .match-card').forEach(card=>{
     card.classList.toggle('selected', parseInt(card.dataset.match,10)===matchNo);
   });
+  const statsSel = document.getElementById('valeStatsMatchFilter');
+  statsSel.value = String(matchNo);
+  renderValeTeamStats();
   const compSel = document.getElementById('valeCompMatchFilter');
   compSel.value = String(matchNo);
   renderValeComposition();
@@ -2544,23 +2549,32 @@ function valeJumpToMatch(matchNo){
   if(document.getElementById('valeKpiInfoPanel').style.display !== 'none') renderValeKpiInfoPanel();
 }
 
+// Shows ONE match at a time (defaulting to the most recent) rather than summing every match ever
+// loaded — pooling M1's egg4k with M2's OSYS under a single "opponent" column would blend two
+// different guilds' numbers together and mislabel the total with whichever opponent happened to
+// be first on record. A per-match dropdown (mirroring Team Composition's own) lets you look back
+// at any match individually instead.
 function renderValeTeamStats(){
-  const matches = VALE_OF_CLASH_SNAPSHOT.matches;
-  const key = valeBf.toLowerCase();
-  const sum = (fn) => matches.reduce((s,m)=>s+fn(m[key]),0);
-  const avg = (fn) => Math.round(sum(fn) / matches.length);
+  const sel = document.getElementById('valeStatsMatchFilter');
+  if(sel.options.length===0){
+    sel.innerHTML = VALE_OF_CLASH_SNAPSHOT.matches.map(m=>`<option value="${m.match}">M${m.match} vs ${m.opp} (${m.result})</option>`).join('');
+    sel.value = Math.max(...VALE_OF_CLASH_SNAPSHOT.matches.map(m=>m.match));
+  }
+  const matchNo = parseInt(sel.value, 10);
+  const m = VALE_OF_CLASH_SNAPSHOT.matches.find(x=>x.match===matchNo) || VALE_OF_CLASH_SNAPSHOT.matches[VALE_OF_CLASH_SNAPSHOT.matches.length-1];
+  const side = m[valeBf.toLowerCase()];
   const rows = [
-    ['Total Kills', sum(x=>x.house.kills), sum(x=>x.opp.kills)],
-    ['Morale', avg(x=>x.house.morale), avg(x=>x.opp.morale)],
-    ['S-Tier Seize', sum(x=>x.house.sSeize), sum(x=>x.opp.sSeize)],
-    ['S-Tier Unseal', sum(x=>x.house.sUnseal), sum(x=>x.opp.sUnseal)],
-    ['A-Tier Seize', sum(x=>x.house.aSeize), sum(x=>x.opp.aSeize)],
-    ['A-Tier Unseal', sum(x=>x.house.aUnseal), sum(x=>x.opp.aUnseal)],
-    ['B-Tier Seize', sum(x=>x.house.bSeize), sum(x=>x.opp.bSeize)],
-    ['B-Tier Unseal', sum(x=>x.house.bUnseal), sum(x=>x.opp.bUnseal)],
+    ['Total Kills', side.house.kills, side.opp.kills],
+    ['Morale', side.house.morale, side.opp.morale],
+    ['S-Tier Seize', side.house.sSeize, side.opp.sSeize],
+    ['S-Tier Unseal', side.house.sUnseal, side.opp.sUnseal],
+    ['A-Tier Seize', side.house.aSeize, side.opp.aSeize],
+    ['A-Tier Unseal', side.house.aUnseal, side.opp.aUnseal],
+    ['B-Tier Seize', side.house.bSeize, side.opp.bSeize],
+    ['B-Tier Unseal', side.house.bUnseal, side.opp.bUnseal],
   ];
   document.getElementById('valeTeamTable').innerHTML = `
-    <thead><tr><th>${valeBf} Battlefield</th><th>HOUSE</th><th>${matches[0].opp}</th></tr></thead>
+    <thead><tr><th>${valeBf} Battlefield</th><th>HOUSE</th><th>${m.opp}</th></tr></thead>
     <tbody>${rows.map(([label,h,o])=>`<tr><td>${label}</td><td>${h.toLocaleString()}</td><td>${o.toLocaleString()}</td></tr>`).join('')}</tbody>`;
 }
 
@@ -3074,11 +3088,21 @@ function renderValeKpiInfoPanel(){
   const matchSel = document.getElementById('valeMatchFilter');
   const matchVal = matchSel ? matchSel.value : 'all';
 
-  const renderThresholdRows = (tbl) => Object.entries(tbl).map(([job, t])=>{
+  // Every table below takes an explicit jobList rather than looping its own dict's keys — a job
+  // can have real numbers in one tier (say, HOUSE's own baseline, or this match's median) while
+  // having none in another (no prior-window target, because the side that won the anchor match(es)
+  // never fielded that job). Looping only the threshold table's keys would silently hide real,
+  // already-computed baseline/match-median numbers for that job — exactly the kind of gap that
+  // made HOUSE's own Sub-Sniper history invisible for a match whose target-setting window had
+  // none. Each table now shows every job that has SOMETHING to show, dashing out only the cells
+  // that tier genuinely has no data for.
+  const renderThresholdRows = (tbl, jobList) => jobList.map(job=>{
+    const t = tbl[job] || {ctf:null, k:null, a:null, d:null};
     const cell = (v, ceil) => v===null ? '—' : (ceil ? `≤ ${v}` : `≥ ${v}`);
     return `<tr><td>${job}</td><td>${cell(t.ctf,false)}</td><td>${cell(t.k,false)}</td><td>${cell(t.a,false)}</td><td>${cell(t.d,true)}</td></tr>`;
   }).join('');
-  const renderBaselineRows = (tbl, baseline) => Object.entries(tbl).map(([job, t])=>{
+  const renderBaselineRows = (tbl, baseline, jobList) => jobList.map(job=>{
+    const t = tbl[job] || {ctf:null, k:null, a:null, d:null};
     const b = baseline[job] || {ctf:null, k:null, a:null, d:null};
     const cellClass = (bv, tv, ceil) => (bv===null || tv===null) ? 'bi-na' : ((ceil ? bv<=tv : bv>=tv) ? 'bi-ok' : 'bi-short');
     const cellText = bv => bv===null ? '—' : bv;
@@ -3098,12 +3122,13 @@ function renderValeKpiInfoPanel(){
     // median for "every match at once" would blur together numbers that are meant to be match-specific.
     const tableAll = VALE_KPI_OVERALL[valeBf] || {};
     const baselineAll = VALE_HOUSE_BASELINE_OVERALL[valeBf] || {};
+    const jobsAll = [...new Set([...Object.keys(tableAll), ...Object.keys(baselineAll)])].sort();
     thresholdSectionHtml = `
       <p style="margin-top:10px;"><b class="ip-title ip-gold">${valeBf}-Battlefield thresholds</b>The target across every match loaded so far: the winning side's performance, pooled by job. A blank cell means that stat isn't scored for that job (Kills isn't scored for Biochemist, Gypsy/Bard or Priest). Pick a specific match below instead to see the target based on just the 2 matches right before it.</p>
-      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderThresholdRows(tableAll)}</tbody></table>`;
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderThresholdRows(tableAll, jobsAll)}</tbody></table>`;
     baselineSectionHtml = `
       <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>HOUSE's own numbers, win or lose, pooled over everything loaded so far. <span class="bi-short-dot">●</span> Red means HOUSE misses the target. <span class="bi-ok-dot">●</span> Green means HOUSE meets or beats it.</p>
-      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderBaselineRows(tableAll, baselineAll)}</tbody></table>`;
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderBaselineRows(tableAll, baselineAll, jobsAll)}</tbody></table>`;
     matchSectionHtml = `<p style="margin-top:12px;"><b class="ip-title ip-blue">This match's median</b>Pick a specific match below to see that match's own per-job median. Every match has different numbers, so there's nothing to show for "All matches."</p>`;
   } else {
     const matchNum = parseInt(matchVal, 10);
@@ -3111,22 +3136,28 @@ function renderValeKpiInfoPanel(){
     const windowMatches = valeGetKpiWindowMatches(matchNum, 2);
     table = ((VALE_KPI_BY_MATCH[matchNum] || {})[valeBf]) || {};
     const baseline = ((VALE_HOUSE_BASELINE_BY_MATCH[matchNum] || {})[valeBf]) || {};
+    // Jobs that were actually played this match, both sides pooled — the same key space
+    // VALE_MATCH_MEDIANS uses, read back out rather than recomputed here.
+    const mmPrefix = `${valeBf}|${matchVal}|`;
+    const matchJobs = Object.keys(VALE_MATCH_MEDIANS).filter(k=>k.startsWith(mmPrefix)).map(k=>k.slice(mmPrefix.length));
+    const jobList = [...new Set([...Object.keys(table), ...Object.keys(baseline), ...matchJobs])].sort();
     const isSelfFallback = prior.length === 0;
     const windowWord = isSelfFallback
       ? `M${matchNum} itself — there's no earlier match yet, so it sets its own target`
       : (windowMatches.length === 1 ? 'the 1 match before it' : 'the 2 matches before it');
     const windowLabel = windowMatches.map(m=>`M${m.match} (vs ${m.opp}, ${m.result})`).join(', ');
     thresholdSectionHtml = `
-      <p style="margin-top:10px;"><b class="ip-title ip-gold">${valeBf}-Battlefield thresholds</b>The target that applied to M${matchNum}: the winning side's performance in ${windowWord}, ${windowLabel}. A blank cell means that stat isn't scored for that job.</p>
-      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderThresholdRows(table)}</tbody></table>`;
+      <p style="margin-top:10px;"><b class="ip-title ip-gold">${valeBf}-Battlefield thresholds</b>The target that applied to M${matchNum}: the winning side's performance in ${windowWord}, ${windowLabel}. A blank cell means that stat isn't scored for that job — either it's never scored for that job, or nobody on the winning side of ${isSelfFallback ? 'that match' : 'those matches'} played it.</p>
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderThresholdRows(table, jobList)}</tbody></table>`;
     baselineSectionHtml = `
-      <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>HOUSE's own numbers over ${windowWord}. <span class="bi-short-dot">●</span> Red means HOUSE would have missed that target. <span class="bi-ok-dot">●</span> Green means HOUSE would have met or beaten it.</p>
-      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderBaselineRows(table, baseline)}</tbody></table>`;
+      <p style="margin-top:12px;"><b class="ip-title ip-teal">Where HOUSE actually sits</b>HOUSE's own numbers over ${windowWord}. <span class="bi-short-dot">●</span> Red means HOUSE would have missed that target. <span class="bi-ok-dot">●</span> Green means HOUSE would have met or beaten it. A grey dash means there's nothing on one side or the other to compare — often because no target exists for that job this match (see above), even when HOUSE has real numbers for it.</p>
+      <table><thead><tr><th>Job</th><th>Flags</th><th>Kills</th><th>Assist</th><th>Death</th></tr></thead><tbody>${renderBaselineRows(table, baseline, jobList)}</tbody></table>`;
 
     // ---- third table: the selected match's own per-job medians ----
     const matchInfo = VALE_OF_CLASH_SNAPSHOT.matches.find(m => String(m.match) === matchVal);
     const matchLabel = matchInfo ? `M${matchInfo.match} vs ${matchInfo.opp} (${matchInfo.result})` : `Match ${matchVal}`;
-    const matchRows = Object.entries(table).map(([job, t])=>{
+    const matchRows = jobList.map(job=>{
+      const t = table[job] || {ctf:null, k:null, a:null, d:null};
       const mm = VALE_MATCH_MEDIANS[`${valeBf}|${matchVal}|${job}`];
       const cellClass = (mv, tv, ceil) => {
         if(!COLOR_MATCH_MEDIAN_TABLE) return '';
@@ -3134,9 +3165,12 @@ function renderValeKpiInfoPanel(){
         return (ceil ? mv<=tv : mv>=tv) ? 'bi-ok' : 'bi-short';
       };
       const fmtVal = v => v===null || v===undefined ? '—' : Math.round(v*10)/10;
-      const cell = (mv, tv, ceil) => tv===null ? `<td class="bi-na">—</td>` : `<td class="${cellClass(mv,tv,ceil)}">${fmtVal(mv)}</td>`;
-      if(!mm) return `<tr><td>${job}</td>${cell(null,t.ctf,false)}${cell(null,t.k,false)}${cell(null,t.a,false)}${cell(null,t.d,true)}</tr>`;
-      return `<tr><td>${job}</td>${cell(mm.ctf,t.ctf,false)}${cell(mm.k,t.k,false)}${cell(mm.a,t.a,false)}${cell(mm.d,t.d,true)}</tr>`;
+      // No target (tv===null) no longer forces a dash here — that would hide a real, played-this-
+      // match median just because nothing scores it. Only "nobody played this job this match at
+      // all" (no mm entry) does that now.
+      const cell = (mv, ceil) => mv===undefined || mv===null ? `<td class="bi-na">—</td>` : `<td>${fmtVal(mv)}</td>`;
+      if(!mm) return `<tr><td>${job}</td><td class="bi-na">—</td><td class="bi-na">—</td><td class="bi-na">—</td><td class="bi-na">—</td></tr>`;
+      return `<tr><td>${job}</td>${cell(mm.ctf,false)}${cell(mm.k,false)}${cell(mm.a,false)}${cell(mm.d,true)}</tr>`;
     }).join('');
     const colourNote = COLOR_MATCH_MEDIAN_TABLE
       ? ` Colour here means the same thing as the table above, but for the group rather than for HOUSE overall: <span class="bi-short-dot">●</span> red = everyone in that job fell short of the target this match, <span class="bi-ok-dot">●</span> green = the group cleared it.`
@@ -3167,6 +3201,7 @@ function setupValeListeners(){
   // Battlefield toggle itself is wired once, generically, in setupListeners() above (the same
   // physical trendBfToggle element Stellar Clash uses) — nothing Vale-specific to wire here.
   setupValeCompRowToggle();
+  document.getElementById('valeStatsMatchFilter').addEventListener('change', renderValeTeamStats);
   document.getElementById('valeCompMatchFilter').addEventListener('change', renderValeComposition);
   ['valeMatchFilter','valeJobFilter','valeSortByFilter','valeSortOrderFilter'].forEach(id=>{
     document.getElementById(id).addEventListener('change', ()=>{
