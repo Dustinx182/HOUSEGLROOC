@@ -636,6 +636,39 @@
 .map-legend-swatch.map-swatch-flag-b{background:#7cc23a; border-radius:3px;}
 .map-legend-swatch.map-swatch-spawn{background:#ea6fb0; border-radius:3px;}
 
+.map-legend-flags-hint{font-size:10px; color:var(--text-dim); line-height:1.4; margin:-2px 0 2px;}
+/* Each palette row is a reusable stamp, not a single token — dragging one onto the map
+   creates a brand new flag and leaves the palette row itself right where it was, so the
+   same flag type can be dropped again as many times as needed. */
+.map-flag-palette-item{
+  display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--text); font-weight:600;
+  padding:4px 6px; margin:0 -6px; border-radius:6px; cursor:grab; touch-action:none;
+  border:1px dashed transparent;
+}
+.map-flag-palette-item:hover{background:var(--panel); border-color:var(--border);}
+.map-flag-palette-item:active{cursor:grabbing;}
+.map-flag-palette-item .map-legend-swatch{pointer-events:none;}
+
+/* Ghost that follows the pointer while dragging a flag out of the palette — an actual
+   flag-on-a-pole shape (SVG, injected from JS with the type's color), not a plain block,
+   so it reads as "a flag" rather than a colored tile dropped onto the map. */
+.map-flag-ghost{
+  position:fixed; z-index:999; width:24px; height:30px; margin:-28px 0 0 -6px;
+  pointer-events:none; opacity:0.9; filter:drop-shadow(0 3px 6px rgba(0,0,0,0.65));
+}
+.map-flag-ghost svg{width:100%; height:100%; display:block;}
+
+/* A flag actually placed on the map — freely draggable, click (no drag) removes it.
+   Anchored so the little dot at the base of the pole (not the icon's bounding box) sits
+   exactly on the (x%, y%) point, like it's planted in the ground there. */
+.map-flag{
+  position:absolute; transform:translate(-25%,-90%); z-index:3; width:24px; height:30px;
+  cursor:grab; touch-action:none; filter:drop-shadow(0 2px 5px rgba(0,0,0,0.65));
+}
+.map-flag svg{width:100%; height:100%; display:block; pointer-events:none;}
+.map-flag:active, .map-flag.dragging{cursor:grabbing; z-index:20;}
+.map-canvas.draw-active .map-flag{pointer-events:none;}
+
 .map-selection-bar{padding:10px; background:var(--panel-2); border:1px solid var(--border); border-radius:8px; display:flex; flex-direction:column; gap:6px;}
 .map-selection-count{font-size:11px; font-weight:800; color:var(--gold);}
 .map-selection-btns{display:flex; gap:5px; flex-wrap:wrap;}
@@ -698,6 +731,51 @@
   user-select:none; pointer-events:none; -webkit-user-drag:none;
 }
 .map-pins-layer{position:absolute; inset:0;}
+.map-flags-layer{position:absolute; inset:0;}
+
+/* Freehand drawing layer: a real <canvas> bitmap sitting between the map image and the
+   pins. It's inert (pointer-events:none) while the "Pointer" tool is active, so pin
+   drag/click/marquee-select behave exactly as before; picking Pen/Eraser/Text raises it
+   above the pins (via .draw-active) and switches it to pointer-events:auto so a stroke
+   can be drawn across the whole map, pins included, without moving them. */
+.map-draw-canvas{position:absolute; inset:0; width:100%; height:100%; z-index:1; pointer-events:none; touch-action:none;}
+.map-canvas.draw-active .map-draw-canvas{z-index:10; pointer-events:auto;}
+.map-canvas.draw-active .map-pin{pointer-events:none;}
+
+.map-draw-toolbar{
+  position:sticky; left:8px; top:8px; z-index:20; width:max-content; max-width:calc(100vw - 40px);
+  display:flex; flex-wrap:wrap; align-items:center; gap:9px;
+  background:rgba(10,12,16,0.92); border:1px solid var(--border); border-radius:11px;
+  padding:7px 9px; margin:8px 0 8px 8px; box-shadow:0 4px 14px rgba(0,0,0,0.4);
+}
+[data-theme="light"] .map-draw-toolbar{background:rgba(255,255,255,0.95);}
+.map-draw-group{display:flex; align-items:center; gap:5px;}
+.map-draw-tool-btn, .map-draw-style-btn{
+  width:30px; height:30px; flex:0 0 30px; border-radius:7px; border:1px solid var(--border);
+  background:var(--panel-2); color:var(--text); font-size:14px; line-height:1; cursor:pointer;
+  display:flex; align-items:center; justify-content:center; padding:0;
+}
+.map-draw-tool-btn.active, .map-draw-style-btn.active{
+  background:var(--gold); color:#1b1508; border-color:transparent;
+}
+.map-draw-colors{padding-left:6px; border-left:1px solid var(--border);}
+.map-draw-color-swatch{
+  width:20px; height:20px; flex:0 0 20px; border-radius:50%; border:2px solid rgba(255,255,255,0.3);
+  cursor:pointer; padding:0;
+}
+.map-draw-color-swatch.active{border-color:var(--gold); box-shadow:0 0 0 2px rgba(212,169,76,0.55);}
+.map-draw-clear-btn{
+  border:1px solid var(--border); background:var(--panel-2); color:var(--text-dim);
+  border-radius:7px; padding:0 10px; height:30px; font-size:10.5px; font-weight:800;
+  text-transform:uppercase; letter-spacing:0.03em; cursor:pointer; white-space:nowrap;
+}
+.map-draw-clear-btn:hover{border-color:var(--loss); color:var(--loss);}
+@media (max-width:640px){
+  .map-draw-toolbar{gap:7px; padding:6px 7px;}
+  .map-draw-tool-btn, .map-draw-style-btn{width:27px; height:27px; flex-basis:27px; font-size:12.5px;}
+  .map-draw-color-swatch{width:18px; height:18px; flex-basis:18px;}
+  .map-draw-clear-btn{height:27px; font-size:10px;}
+}
 
 /* .map-pin itself is just a zero-size anchor point at (left%, top%) on the canvas —
    its children are positioned absolutely relative to IT, each with its own fixed
@@ -749,6 +827,15 @@
   min-width:0; padding:2px 3px;
 }
 .map-member-name-select:invalid{color:var(--text-dim);}
+/* The dropdown's OWN closed control inherits --text on purpose (it must read against the
+   dark card behind it), but the pop-open options list is drawn by the browser/OS as its
+   own opaque, usually light, panel — it does NOT get the card's dark background, only
+   whatever text color it inherited. Left alone that's near-white text on a near-white
+   list: unreadable. Options get their own explicit dark-on-light colors so the list is
+   legible regardless of which theme (dark or light) the rest of the page is in. */
+.map-member-name-select option, .map-member-role option{
+  color:#1c2230; background:#ffffff;
+}
 .map-member-row-enemy .map-member-role{width:auto; flex:1;}
 .map-member-slot{font-size:9.5px; color:var(--text-dim); font-weight:600; flex:1;}
 .map-member-role.role-dps{color:#e2645f;}
@@ -781,8 +868,8 @@
   <div class="header-right">
     <div class="record-pill" id="recordPill">–</div>
     <div class="theme-control">
-      <span class="theme-icon" id="themeIcon">☀️</span>
-      <button id="themeToggle" class="theme-switch" role="switch" aria-checked="true" title="Switch to dark theme">
+      <span class="theme-icon" id="themeIcon">🌙</span>
+      <button id="themeToggle" class="theme-switch" role="switch" aria-checked="false" title="Switch to bright theme">
         <span class="knob"></span>
       </button>
     </div>
@@ -1064,10 +1151,12 @@
         </div>
 
         <div class="map-legend map-legend-flags">
-          <div class="map-legend-item"><span class="map-legend-swatch map-swatch-flag-s"></span> S Flag</div>
-          <div class="map-legend-item"><span class="map-legend-swatch map-swatch-flag-a"></span> A Flag</div>
-          <div class="map-legend-item"><span class="map-legend-swatch map-swatch-flag-b"></span> B Flag</div>
-          <div class="map-legend-item"><span class="map-legend-swatch map-swatch-spawn"></span> Spawn point</div>
+          <div class="map-legend-flags-hint">Drag a flag onto the map — drop as many as you like. Click a placed flag to remove it, drag to move it.</div>
+          <div class="map-flag-palette-item" data-flag-type="s"><span class="map-legend-swatch map-swatch-flag-s"></span> S Flag</div>
+          <div class="map-flag-palette-item" data-flag-type="a"><span class="map-legend-swatch map-swatch-flag-a"></span> A Flag</div>
+          <div class="map-flag-palette-item" data-flag-type="b"><span class="map-legend-swatch map-swatch-flag-b"></span> B Flag</div>
+          <div class="map-flag-palette-item" data-flag-type="spawn"><span class="map-legend-swatch map-swatch-spawn"></span> Spawn point</div>
+          <button type="button" class="map-sel-btn" id="mapClearFlagsBtn" style="align-self:flex-start;">Clear Flags</button>
         </div>
 
         <div class="map-selection-bar" id="mapSelectionBar">
@@ -1107,9 +1196,33 @@
       </aside>
 
       <div class="map-canvas-wrap" id="mapCanvasWrap">
+        <div class="map-draw-toolbar" id="mapDrawToolbar">
+          <div class="map-draw-group">
+            <button type="button" class="map-draw-tool-btn active" data-tool="none" title="Pointer — interact with pins">🖱️</button>
+            <button type="button" class="map-draw-tool-btn" data-tool="pen" title="Marker pen">✏️</button>
+            <button type="button" class="map-draw-tool-btn" data-tool="eraser" title="Eraser">🧽</button>
+            <button type="button" class="map-draw-tool-btn" data-tool="text" title="Add text">🔤</button>
+          </div>
+          <div class="map-draw-group">
+            <button type="button" class="map-draw-style-btn" id="mapDrawBoldBtn" title="Bold text"><b>B</b></button>
+            <button type="button" class="map-draw-style-btn" id="mapDrawItalicBtn" title="Italic text"><i>I</i></button>
+          </div>
+          <div class="map-draw-group map-draw-colors" id="mapDrawColors">
+            <button type="button" class="map-draw-color-swatch active" data-color="#ffffff" style="background:#ffffff" title="White"></button>
+            <button type="button" class="map-draw-color-swatch" data-color="#ffe14a" style="background:#ffe14a" title="Yellow"></button>
+            <button type="button" class="map-draw-color-swatch" data-color="#4ade6a" style="background:#4ade6a" title="Green"></button>
+            <button type="button" class="map-draw-color-swatch" data-color="#4aa3ff" style="background:#4aa3ff" title="Blue"></button>
+            <button type="button" class="map-draw-color-swatch" data-color="#ff6b6b" style="background:#ff6b6b" title="Red"></button>
+            <button type="button" class="map-draw-color-swatch" data-color="#c96bff" style="background:#c96bff" title="Purple"></button>
+            <button type="button" class="map-draw-color-swatch" data-color="#111111" style="background:#111111" title="Black"></button>
+          </div>
+          <button type="button" class="map-draw-clear-btn" id="mapDrawClearBtn">Clear Drawing</button>
+        </div>
         <div class="map-canvas" id="mapCanvas" style="aspect-ratio:1600/945;">
           <img id="mapBgImage" alt="Vale of Clash map" draggable="false" src="">
+          <canvas class="map-draw-canvas" id="mapDrawCanvas"></canvas>
           <div class="map-pins-layer" id="mapPinsLayer"></div>
+          <div class="map-flags-layer" id="mapFlagsLayer"></div>
         </div>
       </div>
     </div>
@@ -1130,13 +1243,15 @@ const EVENTS = {
 let currentEvent = 'Vale of Clash';
 function hasEventData(){ return DASH && DASH.matches && DASH.matches.length > 0; }
 
-// ---------- theme (light default / dark alternative) ----------
+// ---------- theme (dark default / light alternative) ----------
 // Applied immediately on load, before any rendering, to avoid a flash of the wrong theme.
 // Persisted via localStorage — this is a real deployed static page, not a sandboxed artifact,
 // so remembering the visitor's choice across visits is the normal, expected behavior here.
+// (Key is versioned so a stale 'light' choice saved under the old key doesn't linger — this
+// build always starts dark unless the toggle below is used again on this browser.)
 (function(){
-  const saved = localStorage.getItem('houseTheme');
-  if(saved !== 'dark') document.documentElement.setAttribute('data-theme', 'light');
+  const saved = localStorage.getItem('houseThemeV2');
+  if(saved === 'light') document.documentElement.setAttribute('data-theme', 'light');
 })();
 </script>
 <script>
@@ -2424,7 +2539,7 @@ function setupListeners(){
     const goingLight = document.documentElement.getAttribute('data-theme') !== 'light';
     if(goingLight){ document.documentElement.setAttribute('data-theme','light'); }
     else { document.documentElement.removeAttribute('data-theme'); }
-    localStorage.setItem('houseTheme', goingLight ? 'light' : 'dark');
+    localStorage.setItem('houseThemeV2', goingLight ? 'light' : 'dark');
     syncThemeBtn();
     forceThemeRepaint();
     renderTrendCharts(); // canvas colors are JS-driven, not CSS — needs an explicit re-render
@@ -3805,7 +3920,7 @@ function mapSetupMarqueeSelect(){
   let active = false, moved = false, startX = 0, startY = 0, marqueeEl = null;
 
   canvasEl.addEventListener('pointerdown', (e)=>{
-    if(e.target.closest('.map-pin')) return; // pins handle their own drag/click
+    if(e.target.closest('.map-pin') || e.target.closest('.map-flag')) return; // they handle their own drag/click
     active = true;
     moved = false;
     startX = e.clientX;
@@ -4067,6 +4182,369 @@ function mapRenderPresets(){
   });
 }
 
+// ============================================================================
+// Freehand drawing layer: marker pen, eraser, and text notes on top of the map.
+// Stored as an ordered list of vector "items" (not a static bitmap) so the whole
+// thing can be re-rendered at any canvas size — each stroke's points and each
+// text's position are kept as percentages of the canvas, exactly like pin
+// positions are. Persisted separately from the pin board / presets, since
+// annotations are a different kind of thing than party placement.
+// ============================================================================
+const MAP_DRAW_STORAGE_KEY = 'houseValeMapDrawing_v1';
+const MAP_DRAW_PEN_WIDTH_PCT = 0.55;      // marker stroke width, as % of canvas width
+const MAP_DRAW_ERASER_WIDTH_PCT = 3;      // eraser is deliberately much fatter than the pen
+const MAP_DRAW_TEXT_FONT_PCT = 2.2;       // text size, as % of canvas width
+
+let mapDrawItems = [];
+let mapDrawTool = 'none'; // 'none' | 'pen' | 'eraser' | 'text'
+let mapDrawColor = '#ffffff';
+let mapDrawBold = false;
+let mapDrawItalic = false;
+
+function mapDrawLoad(){
+  try{
+    const raw = localStorage.getItem(MAP_DRAW_STORAGE_KEY);
+    if(raw){ const parsed = JSON.parse(raw); if(Array.isArray(parsed.items)) return parsed.items; }
+  }catch(e){}
+  return [];
+}
+function mapDrawSave(){
+  try{ localStorage.setItem(MAP_DRAW_STORAGE_KEY, JSON.stringify({items: mapDrawItems})); }catch(e){}
+}
+
+function mapDrawApplyStrokeStyle(ctx, item, cw){
+  ctx.globalCompositeOperation = item.type === 'eraser' ? 'destination-out' : 'source-over';
+  ctx.strokeStyle = item.color || '#ffffff';
+  ctx.lineWidth = Math.max(1, (item.widthPct / 100) * cw);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+}
+
+// Draws just the newest segment of an in-progress stroke, so drawing feels instant
+// instead of waiting on a full re-render of every item on every pointermove.
+function mapDrawSegment(ctx, item, p0, p1, cw, ch){
+  mapDrawApplyStrokeStyle(ctx, item, cw);
+  ctx.beginPath();
+  ctx.moveTo((p0.x / 100) * cw, (p0.y / 100) * ch);
+  ctx.lineTo((p1.x / 100) * cw, (p1.y / 100) * ch);
+  ctx.stroke();
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function mapDrawRenderItem(ctx, item, cw, ch){
+  if(item.type === 'pen' || item.type === 'eraser'){
+    if(!item.points || item.points.length < 2) return;
+    mapDrawApplyStrokeStyle(ctx, item, cw);
+    ctx.beginPath();
+    item.points.forEach((p, i)=>{
+      const px = (p.x / 100) * cw, py = (p.y / 100) * ch;
+      if(i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+  } else if(item.type === 'text'){
+    const fontPx = Math.max(8, (item.fontSizePct / 100) * cw);
+    const weight = item.bold ? '800' : '400';
+    const styleStr = item.italic ? 'italic' : 'normal';
+    ctx.font = `${styleStr} ${weight} ${fontPx}px Arial, "Segoe UI", sans-serif`;
+    ctx.fillStyle = item.color || '#ffffff';
+    ctx.textBaseline = 'top';
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillText(item.text, (item.x / 100) * cw, (item.y / 100) * ch);
+  }
+}
+
+// Full replay of every stored item, in order — erasers punch through whatever pen
+// strokes/text came before them since destination-out is applied in the same
+// sequence they were originally drawn in. Called on load and on resize (the canvas's
+// pixel size changes with viewport width, same as the sidebar-height sync above).
+function mapDrawRedrawAll(){
+  const canvas = document.getElementById('mapDrawCanvas');
+  if(!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  if(rect.width < 1 || rect.height < 1) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = Math.max(1, Math.round(rect.width * dpr));
+  const h = Math.max(1, Math.round(rect.height * dpr));
+  if(canvas.width !== w) canvas.width = w;
+  if(canvas.height !== h) canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  mapDrawItems.forEach(item => mapDrawRenderItem(ctx, item, canvas.width, canvas.height));
+}
+
+function mapSetupDrawing(){
+  const canvas = document.getElementById('mapDrawCanvas');
+  const mapCanvasEl = document.getElementById('mapCanvas');
+  if(!canvas || !mapCanvasEl) return;
+
+  mapDrawItems = mapDrawLoad();
+  requestAnimationFrame(mapDrawRedrawAll);
+
+  document.querySelectorAll('.map-draw-tool-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.map-draw-tool-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      mapDrawTool = btn.dataset.tool;
+      mapCanvasEl.classList.toggle('draw-active', mapDrawTool !== 'none');
+      canvas.style.cursor = mapDrawTool === 'pen' ? 'crosshair'
+        : mapDrawTool === 'eraser' ? 'cell'
+        : mapDrawTool === 'text' ? 'text' : '';
+    });
+  });
+
+  document.querySelectorAll('.map-draw-color-swatch').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.map-draw-color-swatch').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      mapDrawColor = btn.dataset.color;
+    });
+  });
+
+  const boldBtn = document.getElementById('mapDrawBoldBtn');
+  const italicBtn = document.getElementById('mapDrawItalicBtn');
+  if(boldBtn) boldBtn.addEventListener('click', ()=>{
+    mapDrawBold = !mapDrawBold;
+    boldBtn.classList.toggle('active', mapDrawBold);
+  });
+  if(italicBtn) italicBtn.addEventListener('click', ()=>{
+    mapDrawItalic = !mapDrawItalic;
+    italicBtn.classList.toggle('active', mapDrawItalic);
+  });
+
+  const clearBtn = document.getElementById('mapDrawClearBtn');
+  if(clearBtn) clearBtn.addEventListener('click', ()=>{
+    if(!mapDrawItems.length) return;
+    if(!confirm('Clear all drawings and text from the map? This cannot be undone.')) return;
+    mapDrawItems = [];
+    mapDrawSave();
+    mapDrawRedrawAll();
+  });
+
+  const ptFromEvent = (e)=>{
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100)),
+    };
+  };
+
+  let strokeActive = false, currentItem = null, lastPt = null;
+
+  canvas.addEventListener('pointerdown', (e)=>{
+    if(mapDrawTool === 'none') return;
+    // This canvas sits inside #mapCanvas, which has its own pointerdown listener for
+    // rectangle marquee-select. Left unstopped, that listener also fires (event bubbling)
+    // and immediately steals pointer capture onto itself, so every pointermove/pointerup
+    // after this one would go to the marquee handler instead of finishing the stroke here.
+    e.stopPropagation();
+    if(mapDrawTool === 'text'){
+      const p = ptFromEvent(e);
+      const text = prompt('Enter text to place on the map:');
+      if(text && text.trim()){
+        mapDrawItems.push({
+          type: 'text', x: p.x, y: p.y, text: text.trim(),
+          color: mapDrawColor, bold: mapDrawBold, italic: mapDrawItalic,
+          fontSizePct: MAP_DRAW_TEXT_FONT_PCT,
+        });
+        mapDrawSave();
+        mapDrawRedrawAll();
+      }
+      return;
+    }
+    strokeActive = true;
+    const p = ptFromEvent(e);
+    currentItem = {
+      type: mapDrawTool, color: mapDrawColor,
+      widthPct: mapDrawTool === 'eraser' ? MAP_DRAW_ERASER_WIDTH_PCT : MAP_DRAW_PEN_WIDTH_PCT,
+      points: [p],
+    };
+    lastPt = p;
+    try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+  });
+
+  canvas.addEventListener('pointermove', (e)=>{
+    if(!strokeActive || !currentItem) return;
+    const p = ptFromEvent(e);
+    currentItem.points.push(p);
+    mapDrawSegment(canvas.getContext('2d'), currentItem, lastPt, p, canvas.width, canvas.height);
+    lastPt = p;
+  });
+
+  const endStroke = ()=>{
+    if(!strokeActive) return;
+    strokeActive = false;
+    if(currentItem && currentItem.points.length > 1){
+      mapDrawItems.push(currentItem);
+      mapDrawSave();
+    }
+    currentItem = null;
+    lastPt = null;
+  };
+  canvas.addEventListener('pointerup', endStroke);
+  canvas.addEventListener('pointercancel', endStroke);
+  canvas.addEventListener('pointerleave', endStroke);
+}
+
+// ============================================================================
+// Map flags: an unlimited-count palette (S/A/B/Spawn) that you drag out of the
+// sidebar onto the map. Unlike party pins there's no fixed set of these — each
+// drag off the palette stamps out one more, independent flag at the drop point.
+// Positions are percentages of the canvas, same as everything else here, so they
+// stay correct across resizes with no redraw step needed (they're plain DOM
+// elements, not a bitmap).
+// ============================================================================
+const MAP_FLAGS_STORAGE_KEY = 'houseValeMapFlags_v1';
+const MAP_FLAG_TYPES = {
+  s: {cls: 'flag-s', label: 'S Flag', color: '#e6952e'},
+  a: {cls: 'flag-a', label: 'A Flag', color: '#a35fe0'},
+  b: {cls: 'flag-b', label: 'B Flag', color: '#7cc23a'},
+  spawn: {cls: 'flag-spawn', label: 'Spawn point', color: '#ea6fb0'},
+};
+
+let mapFlags = [];
+
+// A small flag-on-a-pole icon (not a plain colored block) so a placed marker actually
+// reads as "a flag" planted on the map. The little dot at the base of the pole is the
+// exact anchor point — .map-flag's CSS transform lines that dot up with (x%, y%).
+function mapFlagIconSvg(color){
+  return `<svg viewBox="0 0 24 30" xmlns="http://www.w3.org/2000/svg">
+    <line x1="6" y1="3" x2="6" y2="27" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round"/>
+    <path d="M6 3 L21 8.5 L6 14 Z" fill="${color}" stroke="#ffffff" stroke-width="1.2" stroke-linejoin="round"/>
+    <circle cx="6" cy="27" r="2.6" fill="#ffffff" stroke="${color}" stroke-width="1.2"/>
+  </svg>`;
+}
+
+function mapFlagsLoad(){
+  try{
+    const raw = localStorage.getItem(MAP_FLAGS_STORAGE_KEY);
+    if(raw){ const parsed = JSON.parse(raw); if(Array.isArray(parsed.flags)) return parsed.flags; }
+  }catch(e){}
+  return [];
+}
+function mapFlagsSave(){
+  try{ localStorage.setItem(MAP_FLAGS_STORAGE_KEY, JSON.stringify({flags: mapFlags})); }catch(e){}
+}
+
+function mapFlagsRender(){
+  const layer = document.getElementById('mapFlagsLayer');
+  if(!layer) return;
+  layer.innerHTML = mapFlags.map(f=>{
+    const meta = MAP_FLAG_TYPES[f.type] || MAP_FLAG_TYPES.s;
+    return `<div class="map-flag ${meta.cls}" data-id="${f.id}" title="${mapEsc(meta.label)} — click to remove, drag to move" style="left:${f.x}%; top:${f.y}%;">${mapFlagIconSvg(meta.color)}</div>`;
+  }).join('');
+  mapFlagsWireDrag();
+}
+
+// Dragging an already-placed flag moves it; a plain click (no movement) removes it —
+// same click-vs-drag distinction used everywhere else on the map (4px threshold).
+function mapFlagsWireDrag(){
+  const canvasEl = document.getElementById('mapCanvas');
+  if(!canvasEl) return;
+  document.querySelectorAll('.map-flag').forEach(el=>{
+    let dragging = false, moved = false, startX = 0, startY = 0;
+
+    el.addEventListener('pointerdown', (e)=>{
+      dragging = true;
+      moved = false;
+      startX = e.clientX;
+      startY = e.clientY;
+      el.classList.add('dragging');
+      try{ el.setPointerCapture(e.pointerId); }catch(err){}
+    });
+
+    el.addEventListener('pointermove', (e)=>{
+      if(!dragging) return;
+      const dx = e.clientX - startX, dy = e.clientY - startY;
+      if(Math.abs(dx) > 4 || Math.abs(dy) > 4) moved = true;
+      if(!moved) return;
+      const rect = canvasEl.getBoundingClientRect();
+      const x = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100));
+      const y = Math.max(0, Math.min(100, ((e.clientY - rect.top) / rect.height) * 100));
+      el.style.left = x + '%';
+      el.style.top = y + '%';
+      const flag = mapFlags.find(f => f.id === el.dataset.id);
+      if(flag){ flag.x = x; flag.y = y; }
+    });
+
+    const endDrag = ()=>{
+      if(!dragging) return;
+      dragging = false;
+      el.classList.remove('dragging');
+      if(moved){
+        mapFlagsSave();
+      } else {
+        mapFlags = mapFlags.filter(f => f.id !== el.dataset.id);
+        mapFlagsSave();
+        mapFlagsRender();
+      }
+    };
+    el.addEventListener('pointerup', endDrag);
+    el.addEventListener('pointercancel', endDrag);
+  });
+}
+
+// Dragging a palette row itself: it never moves or gets consumed — dropping over the
+// map just stamps a new flag at the drop point and the row stays put, ready to drag
+// again for the next one. Dropping outside the map cancels (no flag placed).
+function mapSetupFlagPalette(){
+  const canvasEl = document.getElementById('mapCanvas');
+  if(!canvasEl) return;
+
+  document.querySelectorAll('.map-flag-palette-item').forEach(item=>{
+    item.addEventListener('pointerdown', (e)=>{
+      e.preventDefault();
+      const type = item.dataset.flagType;
+      const meta = MAP_FLAG_TYPES[type];
+      if(!meta) return;
+
+      const ghost = document.createElement('div');
+      ghost.className = `map-flag-ghost ${meta.cls}`;
+      ghost.innerHTML = mapFlagIconSvg(meta.color);
+      ghost.style.left = e.clientX + 'px';
+      ghost.style.top = e.clientY + 'px';
+      document.body.appendChild(ghost);
+
+      const onMove = (ev)=>{
+        ghost.style.left = ev.clientX + 'px';
+        ghost.style.top = ev.clientY + 'px';
+      };
+      const onUp = (ev)=>{
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        window.removeEventListener('pointercancel', onUp);
+        ghost.remove();
+        const rect = canvasEl.getBoundingClientRect();
+        const inside = ev.clientX >= rect.left && ev.clientX <= rect.right
+          && ev.clientY >= rect.top && ev.clientY <= rect.bottom;
+        if(inside){
+          mapFlags.push({
+            id: 'f' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+            type,
+            x: ((ev.clientX - rect.left) / rect.width) * 100,
+            y: ((ev.clientY - rect.top) / rect.height) * 100,
+          });
+          mapFlagsSave();
+          mapFlagsRender();
+        }
+      };
+      window.addEventListener('pointermove', onMove);
+      window.addEventListener('pointerup', onUp);
+      window.addEventListener('pointercancel', onUp);
+    });
+  });
+
+  const clearBtn = document.getElementById('mapClearFlagsBtn');
+  if(clearBtn) clearBtn.addEventListener('click', ()=>{
+    if(!mapFlags.length) return;
+    if(!confirm('Remove every flag placed on the map? This cannot be undone.')) return;
+    mapFlags = [];
+    mapFlagsSave();
+    mapFlagsRender();
+  });
+}
+
 // Keeps the sidebar's height pinned to the canvas's actual rendered height (see the
 // comment on .map-sidebar for why this can't be done in pure CSS). Re-run on resize
 // since the canvas's height changes with viewport width (it's aspect-ratio driven).
@@ -4082,6 +4560,7 @@ let mapResizeListenerAdded = false;
 function initMapBoardOnce(){
   if(mapInited){
     requestAnimationFrame(mapSyncSidebarHeight);
+    requestAnimationFrame(mapDrawRedrawAll);
     return;
   }
   mapInited = true;
@@ -4095,10 +4574,17 @@ function initMapBoardOnce(){
   mapSetupSelectionButtons();
   mapSetupExpandCollapseButtons();
   mapRenderPresets();
+  mapSetupDrawing();
+  mapFlags = mapFlagsLoad();
+  mapFlagsRender();
+  mapSetupFlagPalette();
   requestAnimationFrame(mapSyncSidebarHeight);
   if(!mapResizeListenerAdded){
     mapResizeListenerAdded = true;
-    window.addEventListener('resize', ()=> requestAnimationFrame(mapSyncSidebarHeight));
+    window.addEventListener('resize', ()=>{
+      requestAnimationFrame(mapSyncSidebarHeight);
+      requestAnimationFrame(mapDrawRedrawAll);
+    });
   }
 }
 
